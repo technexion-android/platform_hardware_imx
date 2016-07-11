@@ -48,7 +48,7 @@
 #include "config_cs42888.h"
 #include "config_wm8960.h"
 #include "config_sii902x.h"
-
+#include "config_sgtl5000.h"
 #ifdef BRILLO
 #define PCM_HW_PARAM_ACCESS 0
 #define PCM_HW_PARAM_FORMAT 1
@@ -120,6 +120,7 @@
 
 /*"null_card" must be in the end of this array*/
 struct audio_card *audio_card_list[SUPPORT_CARD_NUM] = {
+	&sgtl5000_card,
     &wm8958_card,
     &wm8962_card,
     &hdmi_card,
@@ -3425,6 +3426,7 @@ static int scan_available_device(struct imx_audio_device *adev, bool rescanusb, 
     }
     adev->audio_card_num = k;
     /*must have one card*/
+	ALOGW("###################MAIN AUDIO CARD:%s\n",adev->card_list[0]->name);
     if(!adev->card_list[0]) {
         ALOGE("no supported sound card found, aborting.");
         return  -EINVAL;
