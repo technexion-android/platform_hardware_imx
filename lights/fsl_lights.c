@@ -26,7 +26,7 @@
 #include <cutils/properties.h>
 
 #define MAX_BRIGHTNESS 255
-#define DEF_BACKLIGHT_DEV "pwm-backlight"
+#define DEF_BACKLIGHT_DEV "backlight_lvds"
 #define DEF_BACKLIGHT_PATH "/sys/class/backlight/"
 
 /*****************************************************************************/
