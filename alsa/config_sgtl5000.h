@@ -22,16 +22,9 @@
 
 /* ALSA cards for IMX, these must be defined according different board / kernel config*/
 static struct audio_card  sgtl5000_card = {
-    .name = "sgtl5000-audio",
-    .driver_name = "sgtl5000-audio",
-    .supported_out_devices   = (AUDIO_DEVICE_OUT_EARPIECE |
-            AUDIO_DEVICE_OUT_SPEAKER |
-            AUDIO_DEVICE_OUT_WIRED_HEADSET |
-            AUDIO_DEVICE_OUT_WIRED_HEADPHONE |
-            AUDIO_DEVICE_OUT_ANLG_DOCK_HEADSET |
-            AUDIO_DEVICE_OUT_DGTL_DOCK_HEADSET |
-            AUDIO_DEVICE_OUT_ALL_SCO |
-            AUDIO_DEVICE_OUT_DEFAULT),
+    .name = "audio-sgtl5000",
+    .driver_name = "audio-sgtl5000",
+    .supported_out_devices   = 0,
     .supported_in_devices    = AUDIO_DEVICE_IN_AUX_DIGITAL,
     .defaults            = NULL,
     .bt_output           = NULL,
