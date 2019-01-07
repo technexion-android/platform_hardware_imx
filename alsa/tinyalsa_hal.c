@@ -56,6 +56,7 @@
 #include "control.h"
 #include "pcm_ext.h"
 #include "config_xtor.h"
+#include "config_usbaudio.h"
 
 /* ALSA ports for IMX */
 #define PORT_MM     0
@@ -111,7 +112,7 @@ struct audio_card *audio_card_list[SUPPORT_CARD_NUM] = {
     &wm8958_card,
     &wm8962_card,
     &hdmi_card,
-    /* &usbaudio_card, */
+    &usbaudio_card,
     &spdif_card,
     &cs42888_card,
     &wm8960_card,

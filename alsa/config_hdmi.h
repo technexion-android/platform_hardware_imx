@@ -22,8 +22,8 @@
 
 /* ALSA cards for IMX, these must be defined according different board / kernel config*/
 static struct audio_card  hdmi_card = {
-    .name = "imx-hdmi-soc",
-    .driver_name = "imx-hdmi-soc",
+    .name = "imx-audio-hdmi",
+    .driver_name = "imx-audio-hdmi",
     .supported_out_devices  = AUDIO_DEVICE_OUT_AUX_DIGITAL,
     .supported_in_devices   = 0,
     .defaults            = NULL,
