@@ -36,7 +36,8 @@
 #include "CameraUtils.h"
 #include "Max9286Mipi.h"
 #include "Ov5640Csi.h"
-#include "Ov5640Csi8MQ.h"
+//#include "Ov5640Csi8MQ.h"
+#include "Ov5645Csi8MQ.h"
 #include "Ov5640Mipi.h"
 #include "Ov5642Csi.h"
 #include "TVIN8DvDevice.h"
@@ -108,7 +109,7 @@ Camera* Camera::createCamera(int32_t id, char* name, int32_t facing,
 #endif
 #endif
     }
-    else if (strstr(name, OV5640_SENSOR_NAME)) {
+    else if (strstr(name, OV5645_SENSOR_NAME)) {
 #ifdef VADC_TVIN
         ALOGI("create id:%d TVin device for auto_sx", id);
         device = new VADCTVINDevice(id, facing, orientation, path);
@@ -118,8 +119,8 @@ Camera* Camera::createCamera(int32_t id, char* name, int32_t facing,
         property_get("ro.board.platform", boardName, DEFAULT_ERROR_NAME_str);
 
         if (strstr(boardName, IMX8_BOARD_NAME)) {
-            ALOGI("create id:%d 5640-csi-8mq device", id);
-            device = new Ov5640Csi8MQ(id, facing, orientation, path);
+            ALOGI("create id:%d 5645-csi-8mq device", id);
+            device = new Ov5645Csi8MQ(id, facing, orientation, path);
         } else {
             ALOGI("create id:%d 5640-csi device", id);
             device = new Ov5640Csi(id, facing, orientation, path);
