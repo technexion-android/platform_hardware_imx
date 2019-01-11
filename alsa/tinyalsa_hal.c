@@ -40,6 +40,7 @@
 #include <audio_effects/effect_aec.h>
 
 #include "audio_hardware.h"
+#include "config_sgtl5000.h"
 #include "config_wm8962.h"
 #include "config_wm8958.h"
 #include "config_hdmi.h"
@@ -101,6 +102,7 @@
 
 /*"null_card" must be in the end of this array*/
 struct audio_card *audio_card_list[SUPPORT_CARD_NUM] = {
+    &sgtl5000_card,
     &wm8958_card,
     &wm8962_card,
     &hdmi_card,
