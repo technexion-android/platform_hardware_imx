@@ -37,6 +37,7 @@
 #include "Max9286Mipi.h"
 #include "Ov5640Csi.h"
 #include "Ov5640Csi8MQ.h"
+#include "Ov5645Csi8MQ.h"
 #include "Ov5640Csi7D.h"
 #include "Ov5640Imx8Q.h"
 #include "Ov5640Mipi.h"
@@ -49,6 +50,7 @@
 #include "VideoStream.h"
 
 #define CAMERA_SYNC_TIMEOUT 5000 // in msecs
+#define PICO_IMX8M_DEFAULT_CAMERA_OV5645
 
 extern "C" {
 // Shim passed to the framework to close an opened device.
@@ -114,7 +116,7 @@ Camera* Camera::createCamera(int32_t id, char* name, int32_t facing,
 #endif
 #endif
     }
-    else if (strstr(name, OV5640_SENSOR_NAME)) {
+    else if (strstr(name, OV5645_SENSOR_NAME)) {
 #ifdef VADC_TVIN
         ALOGI("create id:%d TVin device for auto_sx", id);
         device = new VADCTVINDevice(id, facing, orientation, path);
@@ -124,8 +126,13 @@ Camera* Camera::createCamera(int32_t id, char* name, int32_t facing,
         property_get("ro.board.platform", boardName, DEFAULT_ERROR_NAME_str);
 
         if (strstr(boardName, IMX8_BOARD_NAME)) {
+#ifdef PICO_IMX8M_DEFAULT_CAMERA_OV5645
+            ALOGI("create id:%d 5645-csi-8mq device", id);
+            device = new Ov5645Csi8MQ(id, facing, orientation, path);
+#else
             ALOGI("create id:%d 5640-csi-8mq device", id);
             device = new Ov5640Csi8MQ(id, facing, orientation, path);
+#endif
         } else if (strstr(boardName, IMX7_BOARD_NAME)) {
             ALOGI("create id:%d 5640-csi-7d device", id);
             device = new Ov5640Csi7D(id, facing, orientation, path);
