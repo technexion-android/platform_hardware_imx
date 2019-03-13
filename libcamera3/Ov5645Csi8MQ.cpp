@@ -129,12 +129,13 @@ status_t Ov5645Csi8MQ::initSensorStaticData()
         //But 1920x1080, 176x144 not work in this mode.
         // 1920x1080 is required by CTS.
         //2592x1944 will block when do DQBUF, filter it out in picture size.
-        mPictureResolutions[pictureCnt++] = vid_frmsize.discrete.width;
-        mPictureResolutions[pictureCnt++] = vid_frmsize.discrete.height;
+
+        mPictureResolutions[pictureCnt++] = 1280;
+        mPictureResolutions[pictureCnt++] = 720;
 
         if (vid_frmval.discrete.denominator / vid_frmval.discrete.numerator > 15) {
-            mPreviewResolutions[previewCnt++] = vid_frmsize.discrete.width;
-            mPreviewResolutions[previewCnt++] = vid_frmsize.discrete.height;
+            mPreviewResolutions[previewCnt++] = 1280;
+            mPreviewResolutions[previewCnt++] = 720;
         }
     } // end while
 
@@ -166,12 +167,12 @@ status_t Ov5645Csi8MQ::initSensorStaticData()
     ALOGI("mMaxWidth:%d, mMaxHeight:%d", mMaxWidth, mMaxHeight);
 
     mFocalLength = 3.37f;
-    mPhysicalWidth = 3.6288f;   //2592 x 1.4u
-    mPhysicalHeight = 2.7216f;  //1944 x 1.4u
-    mActiveArrayWidth = 2592;
-    mActiveArrayHeight = 1944;
-    mPixelArrayWidth = 2592;
-    mPixelArrayHeight = 1944;
+    mPhysicalWidth = 1.792f;   //2592 x 1.4u
+    mPhysicalHeight = 1.008f;  //1944 x 1.4u
+    mActiveArrayWidth = 1280;
+    mActiveArrayHeight = 720;
+    mPixelArrayWidth = 1280;
+    mPixelArrayHeight = 720;
 
     ALOGI("ov5640Csi, mFocalLength:%f, mPhysicalWidth:%f, mPhysicalHeight %f",
         mFocalLength, mPhysicalWidth, mPhysicalHeight);
