@@ -23,7 +23,7 @@
 
 /* ALSA cards for IMX, these must be defined according different board / kernel config*/
 static struct audio_card  usbaudio_card = {
-    .name = "USB Device",
+    .name = "USB Audio Device",
     .driver_name = "USB-Audio",
     .supported_out_devices  = AUDIO_DEVICE_OUT_DGTL_DOCK_HEADSET,
     .supported_in_devices   = AUDIO_DEVICE_IN_USB_DEVICE|AUDIO_DEVICE_IN_DGTL_DOCK_HEADSET,
