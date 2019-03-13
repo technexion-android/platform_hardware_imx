@@ -69,6 +69,7 @@
 #include "config_xtor_pico.h"
 #include "config_rt5645.h"
 #include "config_micfil.h"
+#include "config_usbaudio.h"
 
 /* ALSA ports for IMX */
 #define PORT_MM     0
@@ -143,7 +144,6 @@ struct audio_card *audio_card_list[SUPPORT_CARD_NUM] = {
     &wm8958_card,
     &wm8962_card,
     &hdmi_card,
-    /* &usbaudio_card, */
     &spdif_card,
     &cs42888_card,
     &wm8960_card,
@@ -159,6 +159,7 @@ struct audio_card *audio_card_list[SUPPORT_CARD_NUM] = {
     &xtor_pico_card,
     &rt5645_card,
     &micfil_card,
+    &usbaudio_card,
     &null_card,
 };
 
