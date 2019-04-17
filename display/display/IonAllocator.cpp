@@ -115,13 +115,15 @@ int IonAllocator::allocMemory(int size, int align, int flags)
     // contiguous memory includes cacheable/non-cacheable.
     if (flags & MFLAGS_CONTIGUOUS) {
         heapIds = mCCHeapIds | mCNHeapIds;
+        if (flags & MFLAGS_CACHEABLE)
+                unsigned int ion_flags = 1;
+    }
+    else if (flags & MFLAGS_SECURE) {
+        heapIds = mSeHeapIds;
     }
     // cacheable memory includes contiguous/non-contiguous.
     else if (flags & MFLAGS_CACHEABLE) {
         heapIds = mCCHeapIds | mNCHeapIds;
-    }
-    else if (flags & MFLAGS_SECURE) {
-        heapIds = mSeHeapIds;
     }
     else {
         ALOGE("%s invalid flags:0x%x", __func__, flags);
