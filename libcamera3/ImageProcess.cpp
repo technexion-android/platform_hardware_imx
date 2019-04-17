@@ -229,6 +229,7 @@ int ImageProcess::handleFrame(StreamBuffer& dstBuf, StreamBuffer& srcBuf)
     }
 
     do {
+#if 0
         // firstly try GPU.
         ret = handleFrameByGPU(dstBuf, srcBuf);
         if (ret == 0) {
@@ -258,7 +259,7 @@ int ImageProcess::handleFrame(StreamBuffer& dstBuf, StreamBuffer& srcBuf)
         if (ret == 0) {
             break;
         }
-
+#endif
         // no hardware exists.
         ret = handleFrameByCPU(dstBuf, srcBuf);
     } while(false);
