@@ -70,7 +70,8 @@
 #include "config_rt5645.h"
 #include "config_micfil.h"
 #include "config_usbaudio.h"
-
+#include "config_tfa9912.h"
+#include "config_sph0645.h"
 /* ALSA ports for IMX */
 #define PORT_MM     0
 #define PORT_MM2_UL 0
@@ -129,7 +130,7 @@
 #define PRODUCT_NAME_PROPERTY   "ro.product.name"
 #define PRODUCT_DEVICE_IMX      "imx"
 #define PRODUCT_DEVICE_AUTO     "sabreauto"
-#define SUPPORT_CARD_NUM        19
+#define SUPPORT_CARD_NUM        22
 
 #define IMX8_BOARD_NAME "imx8"
 #define IMX7_BOARD_NAME "imx7"
@@ -160,6 +161,8 @@ struct audio_card *audio_card_list[SUPPORT_CARD_NUM] = {
     &rt5645_card,
     &micfil_card,
     &usbaudio_card,
+    &tfa9912_card,
+    &sph0645_card,
     &null_card,
 };
 
@@ -832,8 +835,8 @@ static int start_output_stream(struct imx_stream_out *out)
 
 static int check_input_parameters(uint32_t sample_rate, int format, int channel_count)
 {
-    if (format != AUDIO_FORMAT_PCM_16_BIT)
-        return -EINVAL;
+    //if (format != AUDIO_FORMAT_PCM_16_BIT)
+    //    return -EINVAL;
 
     if ((channel_count < 1) || (channel_count > 2))
         return -EINVAL;
@@ -1970,6 +1973,15 @@ static int start_input_stream(struct imx_stream_in *in)
     if (in->device & AUDIO_DEVICE_IN_AUX_DIGITAL) {
         format     = adev_get_format_for_device(adev, in->device, PCM_IN);
         in->config.format  = format;
+    }
+
+    int str_ret = strcmp(adev->card_list[i]->name,"SPH0645");
+    if(str_ret == 0) {
+        in->config.format  = PCM_FORMAT_S32_LE;
+        in->config.channels = 1;
+        in->requested_rate = 48000;
+        in->requested_channel = 1;
+        in->requested_format = PCM_FORMAT_S32_LE;
     }
 
     ALOGW("card %d, port %d device 0x%x", card, port, in->device);
@@ -4018,7 +4030,7 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
     in->stream.get_input_frames_lost = in_get_input_frames_lost;
 
     in->requested_rate    = config->sample_rate;
-    in->requested_format  = PCM_FORMAT_S16_LE;
+    in->requested_format  = PCM_FORMAT_S32_LE;
     in->requested_channel = channel_count;
     in->device  = devices & ~AUDIO_DEVICE_BIT_IN;
 
@@ -4232,6 +4244,11 @@ static int scan_available_device(struct imx_audio_device *adev, bool queryInput,
 
                 if(strcmp(audio_card_list[j]->driver_name, "ak4458-audio") == 0) {
                     ALOGI("ak4458-audio: support multichannel");
+                    adev->support_multichannel = true;
+                }
+
+                if(strcmp(audio_card_list[j]->driver_name, "SPH0645") == 0) {
+                    ALOGI("SPH0645: support multichannel");
                     adev->support_multichannel = true;
                 }
 
