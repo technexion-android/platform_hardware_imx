@@ -129,7 +129,7 @@
 #define PRODUCT_NAME_PROPERTY   "ro.product.name"
 #define PRODUCT_DEVICE_IMX      "imx"
 #define PRODUCT_DEVICE_AUTO     "sabreauto"
-#define SUPPORT_CARD_NUM        22
+#define SUPPORT_CARD_NUM        21
 
 #define IMX8_BOARD_NAME "imx8"
 #define IMX7_BOARD_NAME "imx7"
