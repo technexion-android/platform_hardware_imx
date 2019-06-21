@@ -336,13 +336,11 @@ static int convert_record_data(void *src, void *dst, unsigned int frames, bool b
     }
 
     if (bit_32b_2_16b && !mono2stereo && !stereo2mono) {
-        int data1, data2;
         int *src_t = (int *)src;
         for (i = 0; i < frames; i++) {
-            data1 = *src_t++;
-            data2 = *src_t++;
-            *dst_t++ = (short)(data1 >> 16);
-            *dst_t++ = (short)(data2 >> 16);
+            *dst_t = (short)((*src_t) >> 16);
+            src_t++;
+            dst_t++;
         }
 
         return 0;
@@ -2007,7 +2005,7 @@ static int start_input_stream(struct imx_stream_in *in)
         in->config.channels = 1;
         in->requested_rate = 48000;
         in->requested_channel = 1;
-        in->requested_format = PCM_FORMAT_S32_LE;
+        in->requested_format = PCM_FORMAT_S16_LE;
     }
 
     ALOGW("card %d, port %d device 0x%x", card, port, in->device);
@@ -4078,7 +4076,7 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
     in->stream.get_input_frames_lost = in_get_input_frames_lost;
 
     in->requested_rate    = config->sample_rate;
-    in->requested_format  = PCM_FORMAT_S32_LE;
+    in->requested_format  = PCM_FORMAT_S16_LE;
     in->requested_channel = channel_count;
     in->device  = devices & ~AUDIO_DEVICE_BIT_IN;
 
