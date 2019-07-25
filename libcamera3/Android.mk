@@ -55,6 +55,7 @@ LOCAL_SRC_FILES := \
     Ov5640Csi7D.cpp \
     Ov5640Imx8Q.cpp \
     Ov5640Mipi.cpp \
+    Ov5645Mipi.cpp \
     Ov5642Csi.cpp \
     Max9286Mipi.cpp \
     YuvToJpegEncoder.cpp \

@@ -40,6 +40,7 @@
 #include "Ov5640Csi7D.h"
 #include "Ov5640Imx8Q.h"
 #include "Ov5640Mipi.h"
+#include "Ov5645Mipi.h"
 #include "Ov5642Csi.h"
 #include "TVINDevice.h"
 #include "UvcDevice.h"
@@ -74,6 +75,10 @@ Camera* Camera::createCamera(int32_t id, char* name, int32_t facing,
     }
     else if (strstr(name, OV5640MIPI_SENSOR_NAME)) {
         ALOGI("create id:%d ov5640 mipi device", id);
+        device = new Ov5640Mipi(id, facing, orientation, path);
+    }
+    else if (strstr(name, OV5645MIPI_SENSOR_NAME)) {
+        ALOGI("create id:%d ov5645 mipi device", id);
         device = new Ov5640Mipi(id, facing, orientation, path);
     }
     else if (strstr(name, OV5642CSI_SENSOR_NAME)) {
