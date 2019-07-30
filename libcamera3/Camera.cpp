@@ -38,6 +38,7 @@
 #include "Ov5640Csi.h"
 #include "Ov5640Csi8MQ.h"
 #include "Ov5640Csi7D.h"
+#include "Ov5645Csi7D.h"
 #include "Ov5640Imx8Q.h"
 #include "Ov5640Mipi.h"
 #include "Ov5645Mipi.h"
@@ -131,8 +132,8 @@ Camera* Camera::createCamera(int32_t id, char* name, int32_t facing,
             ALOGI("create id:%d 5640-csi-8mq device", id);
             device = new Ov5640Csi8MQ(id, facing, orientation, path);
         } else if (strstr(boardName, IMX7_BOARD_NAME)) {
-            ALOGI("create id:%d 5640-csi-7d device", id);
-            device = new Ov5640Csi7D(id, facing, orientation, path);
+            ALOGI("create id:%d 5645-csi-7d device", id);
+            device = new Ov5645Csi7D(id, facing, orientation, path);
             device->usemx6s = 1;
         } else {
             ALOGI("create id:%d 5640-csi device", id);
