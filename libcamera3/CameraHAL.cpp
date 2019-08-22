@@ -443,6 +443,13 @@ int32_t CameraHAL::matchDevNodes()
         }
         last = node;
 
+        if (strncmp(dirEntry->d_name, "video1", 6)) {
+            sprintf(dirEntry->d_name, "video1");
+        }
+        else {
+            sprintf(dirEntry->d_name, "video0");
+        }
+
         sprintf(node->devNode, "/dev/%s", dirEntry->d_name);
 
         getNodeName(node->devNode, node->nodeName, nameLen);
