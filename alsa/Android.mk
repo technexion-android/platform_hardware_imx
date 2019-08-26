@@ -41,6 +41,11 @@ LOCAL_CFLAGS += -DCAR_AUDIO
 endif
 endif
 
+# wm8960 not support 48kHz
+ifeq ($(WM8960_AUDIO_CODEC_ACTIVE),true)
+LOCAL_CFLAGS += -DWM8960_CODEC_SUPPORT
+endif
+
 include $(BUILD_SHARED_LIBRARY)
 
 endif
