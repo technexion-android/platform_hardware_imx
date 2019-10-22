@@ -446,7 +446,7 @@ int32_t CameraHAL::matchDevNodes()
         char deviceName[92] = {0};
         memset(deviceName, 0, sizeof(deviceName));
         property_get("ro.product.device", deviceName, DEFAULT_ERROR_NAME_str);
-        if(strstr(deviceName, "pico_imx8m") || strstr(deviceName, "edm_imx8m")) {
+        if(!strstr(deviceName, "pico_imx8mm") && !strstr(deviceName, "flex_imx8mm")) {
             if (strncmp(dirEntry->d_name, "video1", 6)) {
                 sprintf(dirEntry->d_name, "video1");
             }

@@ -133,21 +133,21 @@ status_t Ov5645Csi8MQ::initSensorStaticData()
         char deviceName[CAMERA_SENSOR_LENGTH];
         memset(deviceName, 0, sizeof(deviceName));
         property_get("ro.product.device", deviceName, DEFAULT_ERROR_NAME_str);
-        if(strstr(deviceName, "pico_imx8m") || strstr(deviceName, "edm_imx8m")) {
-            mPictureResolutions[pictureCnt++] = 640;
-            mPictureResolutions[pictureCnt++] = 480;
-
-            if (vid_frmval.discrete.denominator / vid_frmval.discrete.numerator > 15) {
-                mPreviewResolutions[previewCnt++] = 640;
-                mPreviewResolutions[previewCnt++] = 480;
-            }
-        } else {
+        if(strstr(deviceName, "pico_imx8mm") || strstr(deviceName, "flex_imx8mm")) {
             mPictureResolutions[pictureCnt++] = 1280;
             mPictureResolutions[pictureCnt++] = 720;
 
             if (vid_frmval.discrete.denominator / vid_frmval.discrete.numerator > 15) {
                 mPreviewResolutions[previewCnt++] = 1280;
                 mPreviewResolutions[previewCnt++] = 720;
+            }
+        } else {
+            mPictureResolutions[pictureCnt++] = 640;
+            mPictureResolutions[pictureCnt++] = 480;
+
+            if (vid_frmval.discrete.denominator / vid_frmval.discrete.numerator > 15) {
+                mPreviewResolutions[previewCnt++] = 640;
+                mPreviewResolutions[previewCnt++] = 480;
             }
         }
     } // end while
@@ -186,17 +186,16 @@ status_t Ov5645Csi8MQ::initSensorStaticData()
     char deviceName[CAMERA_SENSOR_LENGTH];
     memset(deviceName, 0, sizeof(deviceName));
     property_get("ro.product.device", deviceName, DEFAULT_ERROR_NAME_str);
-    if(strstr(deviceName, "pico_imx8m") || strstr(deviceName, "edm_imx8m")) {
-        mActiveArrayWidth = 640;
-        mActiveArrayHeight = 480;
-        mPixelArrayWidth = 640;
-        mPixelArrayHeight = 480;
-
-    } else {
+    if(strstr(deviceName, "pico_imx8mm") || strstr(deviceName, "flex_imx8mm")) {
         mActiveArrayWidth = 1280;
         mActiveArrayHeight = 720;
         mPixelArrayWidth = 1280;
         mPixelArrayHeight = 720;
+    } else {
+        mActiveArrayWidth = 640;
+        mActiveArrayHeight = 480;
+        mPixelArrayWidth = 640;
+        mPixelArrayHeight = 480;
     }
 
     ALOGI("ov5640Csi, mFocalLength:%f, mPhysicalWidth:%f, mPhysicalHeight %f",
