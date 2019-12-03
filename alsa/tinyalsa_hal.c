@@ -4321,7 +4321,11 @@ static int scan_available_device(struct imx_audio_device *adev, bool queryInput,
                 }
 
                 if(queryOutput) {
+#ifdef VOICEHAT_SUPPORT
+                    rate = 48000;
+#else
                     rate = 44100;
+#endif
                     if( pcm_get_near_param_wrap(i, 0, PCM_OUT, PCM_HW_PARAM_RATE, &rate) == 0)
                             adev->card_list[n]->out_rate = rate;
                     ALOGW("out rate %d",adev->card_list[n]->out_rate);

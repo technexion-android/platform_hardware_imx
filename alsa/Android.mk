@@ -41,6 +41,11 @@ LOCAL_CFLAGS += -DCAR_AUDIO
 endif
 endif
 
+# voicehat not support 44.1kHz
+ifeq ($(AUDIOHAT_ACTIVE),true)
+LOCAL_CFLAGS += -DVOICEHAT_SUPPORT
+endif
+
 include $(BUILD_SHARED_LIBRARY)
 
 endif
