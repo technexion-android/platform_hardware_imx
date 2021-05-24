@@ -154,6 +154,12 @@ status_t CameraDeviceHwlImpl::initSensorStaticData()
         }
         ALOGI("enum frame size w:%d, h:%d", cam_frmsize.discrete.width, cam_frmsize.discrete.height);
 
+#ifdef OV564X_8MQ
+        if( !((cam_frmsize.discrete.width == 1280) &&
+              (cam_frmsize.discrete.height == 720)) )
+            continue;
+#endif
+
         if (cam_frmsize.discrete.width == 0 ||
               cam_frmsize.discrete.height == 0) {
             continue;

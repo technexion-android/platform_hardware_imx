@@ -50,6 +50,7 @@ imx_camera_defaults {
             cflags: [
                 "-Wextra",
                 "-Wall"
+
             ],
             shared_libs: [
                 "android.hardware.camera.provider@2.6",
