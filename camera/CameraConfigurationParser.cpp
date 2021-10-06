@@ -27,6 +27,7 @@
 #include <string>
 
 constexpr char kSocType[] = "ro.boot.soc_type";
+constexpr char kPanelRot[] = "ro.boot.swrotation";
 
 namespace cameraconfigparser {
 namespace {
@@ -274,8 +275,13 @@ bool ConfigureCameras(const Json::Value& value,
     else
         camera->camera_metadata[cam_index].mplane = 0;
 
-    camera->camera_metadata[cam_index].orientation = strtol((*iter)[kOrientationKey].asString().c_str(),
+    /* orientation detection using kPanelRot property */
+    if( atoi(android::base::GetProperty(kPanelRot, "").c_str()) == 90 ) {
+        camera->camera_metadata[cam_index].orientation = 90;
+    } else {
+        camera->camera_metadata[cam_index].orientation = strtol((*iter)[kOrientationKey].asString().c_str(),
                                                         &endptr, 10);
+    }
 
     if (endptr != (*iter)[kOrientationKey].asString().c_str() +
           (*iter)[kOrientationKey].asString().size()) {
