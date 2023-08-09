@@ -448,7 +448,7 @@ YuvToJpegEncoder * YuvToJpegEncoder::create(int format) {
     ALOGI("YuvToJpegEncoder::create, format 0x%x", format);
     if ((format == HAL_PIXEL_FORMAT_YCbCr_420_SP) || (format == HAL_PIXEL_FORMAT_YCbCr_420_888)){
         return new Yuv420SpToJpegEncoder(format);
-    } else if (format == HAL_PIXEL_FORMAT_YCbCr_422_I) {
+    } else if ((format == HAL_PIXEL_FORMAT_YCbCr_422_I) || (format == HAL_PIXEL_FORMAT_CbYCrY_422_I)) {
         return new Yuv422IToJpegEncoder(format);
     } else if (format == HAL_PIXEL_FORMAT_YCbCr_422_SP) {
         return new Yuv422SpToJpegEncoder(format);

@@ -1134,6 +1134,7 @@ int32_t CameraDeviceSessionHwlImpl::processJpegBuffer(ImxStreamBuffer *srcBuf, I
     struct camera3_jpeg_blob *jpegBlob = NULL;
     uint32_t bufSize = 0;
     int maxJpegSize = mSensorData.maxjpegsize;
+	uint32_t src_fmt = 0;
     ImxStreamBuffer resizeBuf;
     memset(&resizeBuf, 0, sizeof(resizeBuf));
 
@@ -1150,6 +1151,8 @@ int32_t CameraDeviceSessionHwlImpl::processJpegBuffer(ImxStreamBuffer *srcBuf, I
         return BAD_VALUE;
     }
 
+    // Preserve the source pixel format for pixel format convertion
+    src_fmt = srcStream->format();
     ret = meta->getJpegQuality(encodeQuality);
     if (ret != NO_ERROR) {
         ALOGE("%s getJpegQuality failed", __func__);
@@ -1223,8 +1226,9 @@ int32_t CameraDeviceSessionHwlImpl::processJpegBuffer(ImxStreamBuffer *srcBuf, I
         return BAD_VALUE;
     }
 
-    // Handle zoom in
-    if (srcStream->mZoomRatio > 1.0) {
+    // Handle zoom in and different pixel formats
+    // we use g2c_blit to convert the pixel format
+    if ((srcStream->mZoomRatio > 1.0) || (src_fmt != capture->format())) {
         resizeBuf.mFormatSize = srcBuf->mFormatSize;
         resizeBuf.mSize = (resizeBuf.mFormatSize + PAGE_SIZE) & (~(PAGE_SIZE - 1));
         ret = AllocPhyBuffer(resizeBuf);
