@@ -237,6 +237,9 @@ status_t CameraDeviceHwlImpl::initSensorStaticData()
     if (strcmp(mSensorData.v4l2_format, "nv12") == 0) {
         sensorFormats[index] = v4l2_fourcc('N', 'V', '1', '2');
         availFormats[index++] = v4l2_fourcc('N', 'V', '1', '2');
+    } else if (strcmp(mSensorData.v4l2_format, "uyvy") == 0) {
+		sensorFormats[index] = v4l2_fourcc('U', 'Y', 'V', 'Y');
+		availFormats[index++] = v4l2_fourcc('U', 'Y', 'V', 'Y');
     } else {
         sensorFormats[index] = v4l2_fourcc('Y', 'U', 'Y', 'V');
         availFormats[index++] = v4l2_fourcc('Y', 'U', 'Y', 'V');

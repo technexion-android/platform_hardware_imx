@@ -367,6 +367,8 @@ int CameraDeviceSessionHwlImpl::HandleIntent(HwlPipelineRequest *hwReq)
         uint32_t format = HAL_PIXEL_FORMAT_YCbCr_422_I;
         if (strcmp(mSensorData.v4l2_format, "nv12") == 0)
             format = HAL_PIXEL_FORMAT_YCbCr_420_SP;
+        else if (strcmp(mSensorData.v4l2_format, "uyvy") == 0)
+            format = HAL_PIXEL_FORMAT_CbYCrY_422_I;
 
         if(pipeline_info->hal_streams->at(configIdx).override_format == HAL_PIXEL_FORMAT_RAW16) {
             format = HAL_PIXEL_FORMAT_RAW16;
@@ -1185,6 +1187,7 @@ int32_t CameraDeviceSessionHwlImpl::processJpegBuffer(ImxStreamBuffer *srcBuf, I
             break;
 
         case HAL_PIXEL_FORMAT_YCbCr_422_I:
+        case HAL_PIXEL_FORMAT_CbYCrY_422_I:
             alignedw = ALIGN_PIXEL_16(capture->mWidth);
             alignedh = ALIGN_PIXEL_16(capture->mHeight);
             captureSize = alignedw * alignedh * 2;

@@ -54,6 +54,10 @@ int32_t changeSensorFormats(int *src, int *dst, int len)
                 dst[k++] = HAL_PIXEL_FORMAT_YCbCr_422_I;
                 break;
 
+            case v4l2_fourcc('U', 'Y', 'V', 'Y'):
+                dst[k++] = HAL_PIXEL_FORMAT_CbYCrY_422_I;
+                break;
+
             case v4l2_fourcc('B', 'L', 'O', 'B'):
                 dst[k++] = HAL_PIXEL_FORMAT_BLOB;
                 break;
@@ -124,6 +128,9 @@ int convertPixelFormatToV4L2Format(PixelFormat format, bool invert)
         case HAL_PIXEL_FORMAT_YCbCr_422_I:
             nFormat = v4l2_fourcc('Y', 'U', 'Y', 'V');
             break;
+        case HAL_PIXEL_FORMAT_CbYCrY_422_I:
+            nFormat = v4l2_fourcc('U', 'Y', 'V', 'Y');
+            break;
         case HAL_PIXEL_FORMAT_YCbCr_422_SP:
             nFormat = v4l2_fourcc('N', 'V', '1', '6');
             break;
@@ -173,6 +180,7 @@ int32_t getSizeByForamtRes(int32_t format, uint32_t width, uint32_t height, bool
             size = alignedw * alignedh * 3 / 2;
             break;
 
+        case HAL_PIXEL_FORMAT_CbYCrY_422_I:
         case HAL_PIXEL_FORMAT_YCbCr_422_I:
         case HAL_PIXEL_FORMAT_YCbCr_422_SP:
         case HAL_PIXEL_FORMAT_RAW16:
