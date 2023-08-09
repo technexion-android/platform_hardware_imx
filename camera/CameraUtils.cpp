@@ -52,6 +52,10 @@ int32_t changeSensorFormats(int *src, int *dst, int len) {
                 dst[k++] = HAL_PIXEL_FORMAT_YCbCr_422_I;
                 break;
 
+            case v4l2_fourcc('U', 'Y', 'V', 'Y'):
+                dst[k++] = HAL_PIXEL_FORMAT_CbYCrY_422_I;
+                break;
+
             case v4l2_fourcc('B', 'L', 'O', 'B'):
                 dst[k++] = HAL_PIXEL_FORMAT_BLOB;
                 break;
