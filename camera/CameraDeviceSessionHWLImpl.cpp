@@ -1052,6 +1052,16 @@ status_t CameraDeviceSessionHwlImpl::ProcessCapbuf2Outbuf(ImxStreamBuffer *srcBu
 
     uint64_t t1 = systemTime();
 
+    // Convert pixel format
+    ImxStreamBuffer convBuf;
+    switch(srcBuf->mStream->format()) {
+        case HAL_PIXEL_FORMAT_CbYCrY_422_I: {
+            memset(&convBuf, 0, sizeof(convBuf));
+            conv_pixel_format(&convBuf, srcBuf, HAL_PIXEL_FORMAT_YCbCr_422_I, mCamBlitCscType);
+            break;
+        }
+    }
+
     if (dstBuf->mStream->format() == HAL_PIXEL_FORMAT_BLOB) {
         mJpegBuilder->reset();
         mJpegBuilder->setMetadata(&requestMeta);
@@ -1071,6 +1081,14 @@ status_t CameraDeviceSessionHwlImpl::ProcessCapbuf2Outbuf(ImxStreamBuffer *srcBu
 
     DumpStream(srcBuf->mVirtAddr, srcBuf->mFormatSize, dstBuf->mVirtAddr, dstBuf->mFormatSize, dstBuf->mStream->id());
 
+    if (convBuf.mPhyAddr > 0) {
+        // REMEMBER to restore srcBuf from convBuf
+        SwitchImxBuf(*srcBuf, convBuf);
+        if (convBuf.mStream && (convBuf.mStream != srcBuf->mStream)) {
+            delete(convBuf.mStream);
+        }
+        FreePhyBuffer(convBuf);
+    }
     ReleaseImxStreamBuffer(dstBuf);
     return 0;
 }
@@ -1134,7 +1152,6 @@ int32_t CameraDeviceSessionHwlImpl::processJpegBuffer(ImxStreamBuffer *srcBuf, I
     struct camera3_jpeg_blob *jpegBlob = NULL;
     uint32_t bufSize = 0;
     int maxJpegSize = mSensorData.maxjpegsize;
-	uint32_t src_fmt = 0;
     ImxStreamBuffer resizeBuf;
     memset(&resizeBuf, 0, sizeof(resizeBuf));
 
@@ -1152,7 +1169,6 @@ int32_t CameraDeviceSessionHwlImpl::processJpegBuffer(ImxStreamBuffer *srcBuf, I
     }
 
     // Preserve the source pixel format for pixel format convertion
-    src_fmt = srcStream->format();
     ret = meta->getJpegQuality(encodeQuality);
     if (ret != NO_ERROR) {
         ALOGE("%s getJpegQuality failed", __func__);
@@ -1228,7 +1244,7 @@ int32_t CameraDeviceSessionHwlImpl::processJpegBuffer(ImxStreamBuffer *srcBuf, I
 
     // Handle zoom in and different pixel formats
     // we use g2c_blit to convert the pixel format
-    if ((srcStream->mZoomRatio > 1.0) || (src_fmt != capture->format())) {
+    if (srcStream->mZoomRatio > 1.0) {
         resizeBuf.mFormatSize = srcBuf->mFormatSize;
         resizeBuf.mSize = (resizeBuf.mFormatSize + PAGE_SIZE) & (~(PAGE_SIZE - 1));
         ret = AllocPhyBuffer(resizeBuf);
@@ -1991,6 +2007,37 @@ int CameraDeviceSessionHwlImpl::getCapsMode(uint8_t sceneMode)
         __func__, mMaxWidth, mMaxHeight, bHdr, caps_supports.count);
 
     return 0;
+}
+
+int CameraDeviceSessionHwlImpl::conv_pixel_format(ImxStreamBuffer *convBuf, ImxStreamBuffer *srcBuf, uint32_t nu_pixel_fmt, CscHw hw_type) {
+    int ret = -1;
+    ImxStream *src = srcBuf->mStream;
+
+    if(convBuf == NULL) {
+        return(-ENOMEM);
+    }
+
+    if(src->format() == nu_pixel_fmt) {
+        return(0);
+    }
+
+    memset(convBuf, 0, sizeof(*convBuf));
+    convBuf->mFormatSize = srcBuf->mFormatSize;
+    convBuf->mSize = (convBuf->mFormatSize + PAGE_SIZE) & (~(PAGE_SIZE - 1));
+    ret = AllocPhyBuffer(*convBuf);
+    if (ret) {
+        ALOGE("%s:%d AllocPhyBuffer failed", __func__, __LINE__);
+        return(BAD_VALUE);
+    }
+    convBuf->mStream = new ImxStream(src->width(), src->height(), nu_pixel_fmt, src->usage(), src->id(), src->isPreview());
+
+    fsl::ImageProcess *imageProcess = fsl::ImageProcess::getInstance();
+    imageProcess->handleFrame(*convBuf, *srcBuf, hw_type);
+    // Swap srcBuf and convBuf
+    SwitchImxBuf(*srcBuf, *convBuf);
+    ret = 0;
+
+    return(ret);
 }
 
 }  // namespace android

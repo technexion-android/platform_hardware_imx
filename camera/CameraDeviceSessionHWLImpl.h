@@ -238,6 +238,8 @@ private:
     VideoStream* GetVideoStreamByPhysicalId(uint32_t physical_id);
     PipelineInfo* GetPipelineInfo(uint32_t id);
 
+    int conv_pixel_format(ImxStreamBuffer *convBuf, ImxStreamBuffer *srcBuf, uint32_t nu_pixel_fmt, CscHw hw_type);
+
 private:
     class WorkThread : public Thread
     {
