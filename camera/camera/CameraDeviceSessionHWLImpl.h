@@ -227,6 +227,8 @@ private:
 
     int StartStreamOnMaxConfiguredResolution(HwlPipelineRequest *hwReq);
 
+    int conv_pixel_format(ImxStreamBuffer *convBuf, ImxStreamBuffer *srcBuf, uint32_t nu_pixel_fmt, CscHw hw_type);
+
 private:
     class WorkThread : public Thread {
     public:
