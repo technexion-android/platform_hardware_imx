@@ -68,12 +68,16 @@ uint32_t MMAPStream::PickValidFps(int vformat, uint32_t width, uint32_t height, 
 
         valid_fps = frmival.discrete.denominator / frmival.discrete.numerator;
         ALOGI("%s: res %dx%d, fps[%d] = %d", __func__, width, height, frmival.index, valid_fps);
-
+#if 0
         fps_diff = (valid_fps >= requestFps) ? (valid_fps - requestFps) : (requestFps - valid_fps);
         if (fps_diff < fps_diff_min) {
             fps_diff_min = fps_diff;
             pickedFps = valid_fps;
         }
+#else
+        // Just use small fps to avoid Android crash
+        pickedFps = (valid_fps >= requestFps)?(requestFps):(valid_fps);
+#endif
         frmival.index++;
     }
 
