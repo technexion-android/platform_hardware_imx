@@ -22,8 +22,8 @@ cc_library_static {
     include_dirs: [
         "vendor/nxp-opensource/imx/include",
         "system/memory/libion/include",
-        "system/memory/libion/kernel-headers/linux",
-        "system/memory/libion/kernel-headers",
+        "system/memory/libion/original-kernel-headers/linux",
+        "system/memory/libion/original-kernel-headers",
         "system/memory/libion",
         "system/core/include",
         "device/nxp/common/kernel-headers",
