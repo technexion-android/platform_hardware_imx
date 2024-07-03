@@ -308,7 +308,7 @@ int DisplayManager::enumKmsDisplay(const char *path, int *id, bool *foundPrimary
 
     // get primary display name to match DRM.
     // the primary display can be fixed by name.
-    int main = 0;
+    int main = 0, main_prop = 0;
     char const *imx_drm_version[] = {"imx-drm", "mxsfb-drm", "imx-dcss", "imx-dcnano"};
     char value[PROPERTY_VALUE_MAX];
     int i, len;
@@ -340,6 +340,20 @@ int DisplayManager::enumKmsDisplay(const char *path, int *id, bool *foundPrimary
         drmFreeVersion(version);
     }
 
+#ifdef ENABLE_TN_MD_TOUCH
+    int idx = -1;
+    len = property_get("persist.vendor.hwc.device.primary", value, NULL);
+    if (len > 0) {
+        main_prop = 1;
+        for (idx = 0; idx < (sizeof(connector_type_names)/sizeof(connector_type_names[0])); idx++) {
+            if(!strncmp(value, connector_type_names[idx].name, strlen(connector_type_names[idx].name))) {
+                ALOGI("specified connector %s is matched at idx=%d", value, idx);
+                break;
+            }
+        }
+    }
+#endif
+
     drmModeResPtr res = drmModeGetResources(drmFd);
     if (!res) {
         ALOGE("Failed to get DrmResources resources");
@@ -370,8 +384,22 @@ int DisplayManager::enumKmsDisplay(const char *path, int *id, bool *foundPrimary
             continue;
         }
 
+#ifdef ENABLE_TN_MD_TOUCH
+        // compare current connector
+        int id_prop = -1;
+        if (display->readConnector() == connector_type_names[idx].type) {
+            id_prop = *id;
+        }
+
+        // primary display is fixed by property
+        if ( !*foundPrimary && main_prop && (id_prop>0)) {
+            ALOGI("%s set %d as primary display by property", __func__, id_prop);
+            *foundPrimary = true;
+            setPrimaryDisplay(id_prop);
+        }
+#endif
         // primary display is fixed by name.
-        if (!*foundPrimary && main) {
+        if (!*foundPrimary && main && !main_prop) {
             ALOGI("%s set %d as primary display", __func__, (*id));
             *foundPrimary = true;
             setPrimaryDisplay(*id);
@@ -446,7 +474,7 @@ int DisplayManager::enumKmsDisplays()
     }
     free(dirEntry);
 
-    if (!mFoundPrimaryPort) { // No primary display port found, use other one instead
+    if (!mFoundPrimaryPort || !foundPrimary) { // No primary display port found, use other one instead
         for (i=1; i<MAX_PHYSICAL_DISPLAY; i++) {
             // select the first connected display as primary display
             if (mKmsDisplays[i]->connected()) {

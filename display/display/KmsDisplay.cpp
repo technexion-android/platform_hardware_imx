@@ -2068,6 +2068,28 @@ int KmsDisplay::readType()
     return 0;
 }
 
+int KmsDisplay::readConnector()
+{
+    int ret = -ENODEV;
+    if (mDrmFd < 0 || mConnectorID == 0) {
+        ALOGE("%s invalid drmfd or connector id", __func__);
+        return -ENODEV;
+    }
+
+    drmModeConnectorPtr pConnector = drmModeGetConnector(mDrmFd, mConnectorID);
+    if (pConnector == NULL) {
+        ALOGE("%s drmModeGetConnector failed for "
+              "connector index %d", __func__, mConnectorID);
+        return -ENODEV;
+    }
+    ret = pConnector->connector_type;
+
+    if (pConnector != NULL) {
+        drmModeFreeConnector(pConnector);
+    }
+
+    return ret;
+}
 int KmsDisplay::readConnection()
 {
     Mutex::Autolock _l(mLock);

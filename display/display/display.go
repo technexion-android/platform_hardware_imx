@@ -132,5 +132,9 @@ func libfsldisplayDefaults(ctx android.LoadHookContext) {
         p.Target.Android.Shared_libs = append(p.Target.Android.Shared_libs, "libdmabufheap")
         p.Target.Android.Include_dirs = append(p.Target.Android.Include_dirs, "system/memory/libdmabufheap/include")
     }
+    //SOONG_CONFIG_IMXPLUGIN_TN_MD_TOUCH
+    if ctx.Config().VendorConfig("IMXPLUGIN").String("TN_MD_TOUCH") == "true" {
+        p.Target.Android.Cppflags = append(p.Target.Android.Cppflags, "-DENABLE_TN_MD_TOUCH")
+    }
     ctx.AppendProperties(p)
 }

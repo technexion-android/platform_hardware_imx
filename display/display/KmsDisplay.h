@@ -45,6 +45,35 @@ using android::Condition;
 #define ARRAY_LEN(_arr) (sizeof(_arr) / sizeof(_arr[0]))
 #define KMS_PLANE_NUM 2
 
+struct type_name {
+	unsigned int type;
+	const char *name;
+};
+
+static const struct type_name connector_type_names[] = {
+	{ DRM_MODE_CONNECTOR_Unknown, "unknown" },
+	{ DRM_MODE_CONNECTOR_VGA, "VGA" },
+	{ DRM_MODE_CONNECTOR_DVII, "DVI-I" },
+	{ DRM_MODE_CONNECTOR_DVID, "DVI-D" },
+	{ DRM_MODE_CONNECTOR_DVIA, "DVI-A" },
+	{ DRM_MODE_CONNECTOR_Composite, "composite" },
+	{ DRM_MODE_CONNECTOR_SVIDEO, "s-video" },
+	{ DRM_MODE_CONNECTOR_LVDS, "LVDS" },
+	{ DRM_MODE_CONNECTOR_Component, "component" },
+	{ DRM_MODE_CONNECTOR_9PinDIN, "9-pin DIN" },
+	{ DRM_MODE_CONNECTOR_DisplayPort, "DP" },
+	{ DRM_MODE_CONNECTOR_HDMIA, "HDMI-A" },
+	{ DRM_MODE_CONNECTOR_HDMIB, "HDMI-B" },
+	{ DRM_MODE_CONNECTOR_TV, "TV" },
+	{ DRM_MODE_CONNECTOR_eDP, "eDP" },
+	{ DRM_MODE_CONNECTOR_VIRTUAL, "Virtual" },
+	{ DRM_MODE_CONNECTOR_DSI, "DSI" },
+	{ DRM_MODE_CONNECTOR_DPI, "DPI" },
+	{ DRM_MODE_CONNECTOR_WRITEBACK, "WRITEBACK" },
+	{ DRM_MODE_CONNECTOR_SPI, "SPI" },
+	{ DRM_MODE_CONNECTOR_USB, "USB" },
+};
+
 struct KmsPlane
 {
     void getPropertyIds();
@@ -118,6 +147,8 @@ public:
     int closeKms();
     // read display type.
     int readType();
+    // read display connector
+    int readConnector();
     // read display connection state.
     int readConnection();
     // set display drm fd and connector id.
