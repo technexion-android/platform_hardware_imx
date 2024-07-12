@@ -136,6 +136,7 @@ cc_binary {
         "Edid.cpp",
         "FbdevClient.cpp",
         "FbdevDisplay.cpp",
+        "FenceMonitor.cpp",
         "Layer.cpp",
         "Main.cpp",
         "PollThread.cpp",
