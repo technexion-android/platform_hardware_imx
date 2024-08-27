@@ -53,6 +53,7 @@
 #define NV12_TO_I420_KERNEL "g2d_nv12_to_i420"
 #define NV16_TO_I420_KERNEL "g2d_nv16_to_i420"
 #define YUYV_TO_I420_KERNEL "g2d_yuyv_to_i420"
+#define UYVY_TO_YUYV_KERNEL "g2d_uyvy_to_yuyv"
 
 /*Assume max buffer are 3 buffers to be handle, align with cl_g2d_surface.planes[3] */
 #define MAX_CL_MEM_COUNT 3
@@ -74,8 +75,9 @@ typedef enum {
     NV12_TO_I420_INDEX = 6,
     NV16_TO_I420_INDEX = 7,
     YUYV_TO_I420_INDEX = 8,
+    UYVY_TO_YUYV_INDEX = 9,
     /*Assume max kernel function to handle 2D convert */
-    MAX_CL_KERNEL_COUNT  = 9
+    MAX_CL_KERNEL_COUNT = 10
 } cl_kernel_index;
 
 static const char * kernel_name_list[MAX_CL_KERNEL_COUNT + 1] = {
@@ -88,6 +90,7 @@ static const char * kernel_name_list[MAX_CL_KERNEL_COUNT + 1] = {
     NV12_TO_I420_KERNEL,
     NV16_TO_I420_KERNEL,
     YUYV_TO_I420_KERNEL,
+    UYVY_TO_YUYV_KERNEL,
     NULL,
 };
 
@@ -777,6 +780,9 @@ static int get_kernel_index(struct cl_g2d_surface *src, struct cl_g2d_surface *d
     else if ((src->format == CL_G2D_YUYV)&&
         (dst->format == CL_G2D_YUYV))
         kernel_index = YUYV_TO_YUYV_INDEX;
+    else if ((src->format == CL_G2D_UYVY)&&
+        (dst->format == CL_G2D_YUYV))
+        kernel_index = UYVY_TO_YUYV_INDEX;
     else if ((src->format == CL_G2D_NV12)&&
         (dst->format == CL_G2D_NV21))
         kernel_index = NV12_TO_NV21_INDEX;
@@ -868,6 +874,18 @@ int cl_g2d_blit(void *handle, struct cl_g2d_surface *src, struct cl_g2d_surface 
             int src_width = src->width / 8;
             int dst_width = dst->stride / 8;
             kernel_width = dst->stride / 8;
+            kernel_height = src->height;
+            errNum |= clSetKernelArg(kernel, arg_index++, sizeof(cl_int), &(src_width));
+            errNum |= clSetKernelArg(kernel, arg_index++, sizeof(cl_int), &(src->height));
+            errNum |= clSetKernelArg(kernel, arg_index++, sizeof(cl_int), &(dst_width));
+            errNum |= clSetKernelArg(kernel, arg_index++, sizeof(cl_int), &(dst->height));
+        }
+        else if (kernel_index == UYVY_TO_YUYV_INDEX) {
+            // for uyvy to yuyv, 2 pixels with one kernel calls
+            // and based on src width
+            int src_width = src->width / 2;
+            int dst_width = dst->width / 2;
+            kernel_width = src->width / 2;
             kernel_height = src->height;
             errNum |= clSetKernelArg(kernel, arg_index++, sizeof(cl_int), &(src_width));
             errNum |= clSetKernelArg(kernel, arg_index++, sizeof(cl_int), &(src->height));

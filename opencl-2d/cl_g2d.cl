@@ -251,6 +251,28 @@ __kernel void g2d_nv16_to_i420(
     vstore8(uv16_v.s13579bdf, x, output_v + y * (dst_stride / 2));
 }
 
+__kernel void g2d_uyvy_to_yuyv(__global const uchar4 *input,
+        __global uchar4 *output,
+        int src_width,
+        int src_height,
+        int dst_width,
+        int dst_height)
+{
+    int x = get_global_id(0);
+    int y = get_global_id(1);
+    int index = y * src_width + x;
+    uchar4 p_uyvy = *(input + index);
+
+    // UYVY to YUYV conversion
+    uchar4 p_yuyv;
+    p_yuyv.s0 = p_uyvy.s1; // Y0
+    p_yuyv.s1 = p_uyvy.s0; // U
+    p_yuyv.s2 = p_uyvy.s3; // Y1
+    p_yuyv.s3 = p_uyvy.s2; // V
+
+    *(output + index) = p_yuyv;
+}
+
 __kernel void g2d_yuyv_to_yuyv(__global const uint4 *input,
         __global uint4 *output,
         int src_width,
