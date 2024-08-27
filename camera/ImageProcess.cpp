@@ -85,6 +85,11 @@ static bool IsCscSupportByG3D(int srcFomat, int dstFormat)
           (srcFomat == HAL_PIXEL_FORMAT_CbYCrY_422_I)))
         return true;
 
+    // uyvy -> yuyv
+    if ( (dstFormat == HAL_PIXEL_FORMAT_YCbCr_422_I) &&
+         (srcFomat == HAL_PIXEL_FORMAT_CbYCrY_422_I) )
+        return true;
+
     return false;
 }
 
@@ -963,8 +968,14 @@ int ImageProcess::handleFrameByGPU_3D(ImxStreamBuffer& dstBuf, ImxStreamBuffer& 
     // case 4: diffrent format, same resolution
     {
         Mutex::Autolock _l(mCLLock);
-        cl_YUYVtoNV12SP(mCLHandle, (uint8_t *)srcBuf.mVirtAddr,
+        if ((src->format() == HAL_PIXEL_FORMAT_CbYCrY_422_I) && (dst->format() == HAL_PIXEL_FORMAT_YCbCr_422_I)) {
+            cl_UYVYtoYUYV(mCLHandle, (uint8_t *)srcBuf.mVirtAddr,
                     (uint8_t *)dstBuf.mVirtAddr, dst->width(), dst->height(), false, bOutputCached);
+        }
+        else {
+            cl_YUYVtoNV12SP(mCLHandle, (uint8_t *)srcBuf.mVirtAddr,
+                    (uint8_t *)dstBuf.mVirtAddr, dst->width(), dst->height(), false, bOutputCached);
+        }
 
         (*mCLFlush)(mCLHandle);
         (*mCLFinish)(mCLHandle);
@@ -1111,6 +1122,36 @@ void ImageProcess::cl_YUYVCopyByLine(void *g2dHandle,
 
     (*mCLBlit)(g2dHandle, (void*)&src, (void*)&dst);
 }
+
+void ImageProcess::cl_UYVYtoYUYV(void *g2dHandle, uint8_t *inputBuffer,
+         uint8_t *outputBuffer, int width, int height, bool bInputCached, bool bOutputCached)
+{
+    struct cl_g2d_surface src,dst;
+    src.format = CL_G2D_UYVY;
+    src.usage = bInputCached ? CL_G2D_CPU_MEMORY : CL_G2D_DEVICE_MEMORY;
+    src.planes[0] = (long)inputBuffer;
+    src.left = 0;
+    src.top = 0;
+    src.right = width;
+    src.bottom = height;
+    src.stride = width;
+    src.width  = width;
+    src.height = height;
+
+    dst.format = CL_G2D_YUYV;
+    dst.usage = bOutputCached ? CL_G2D_CPU_MEMORY : CL_G2D_DEVICE_MEMORY;
+    dst.planes[0] = (long)outputBuffer;
+    dst.left = 0;
+    dst.top = 0;
+    dst.right = width;
+    dst.bottom = height;
+    dst.stride = width;
+    dst.width  = width;
+    dst.height = height;
+
+    (*mCLBlit)(g2dHandle, (void*)&src, (void*)&dst);
+}
+
 void ImageProcess::cl_YUYVtoNV12SP(void *g2dHandle, uint8_t *inputBuffer,
          uint8_t *outputBuffer, int width, int height, bool bInputCached, bool bOutputCached)
 {
