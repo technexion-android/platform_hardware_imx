@@ -1286,6 +1286,7 @@ int32_t CameraDeviceSessionHwlImpl::processJpegBuffer(ImxStreamBuffer *srcBuf,
         handleFrame(resizeBuf, *srcBuf, mCamBlitCscType);
 
         SwitchImxBuf(*srcBuf, resizeBuf);
+        srcVirtual = (uint8_t *)srcBuf->mVirtAddr;
     }
 
     mainJpeg = new JpegParams(srcVirtual, (uint8_t *)(uintptr_t)srcBuf->mPhyAddr, srcBuf->mSize,
