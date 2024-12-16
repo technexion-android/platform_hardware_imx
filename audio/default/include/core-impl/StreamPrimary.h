@@ -19,6 +19,7 @@
 #include <mutex>
 #include <vector>
 
+#include <core-impl/AudioCardManager.h>
 #include <android-base/thread_annotations.h>
 
 #include "DriverStubImpl.h"
@@ -54,6 +55,33 @@ class StreamPrimary : public StreamAlsa {
     int64_t mStartTimeNs = 0;
     long mFramesSinceStart = 0;
     bool mSkipNextTransfer = false;
+    bool mIsStereoToMono = false;
+    bool mIsS32ToS16 = false;
+    bool mIsS16ToS24 = false;
+    bool mHardwarePause = false;
+    bool mStarted = false;
+    bool mPrimary = false;
+    struct audio_card *mCard = NULL;
+    std::optional<struct pcm_config> mSavedConfig;
+
+  private:
+    /*
+      Enable audio dump feature:
+        setprop persist.vendor.audio.dump 1
+        touch /data/out.pcm
+        touch /data/in.pcm
+        chmod 777 /data/out.pcm
+        chmod 777 /data/in.pcm
+      Each boot:
+        setenforce 0
+        pkill audioserver
+    */
+    bool mDump = false;
+    const char* kDumpOutputFile = "/data/out.pcm";
+    const char* kDumpInputFile = "/data/in.pcm";
+    void dump(const void *buffer, size_t size, const char* name);
+    void tryStart();
+    void stop();
 
   private:
     using AlsaDeviceId = std::pair<int, int>;
