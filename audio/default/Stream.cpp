@@ -30,6 +30,7 @@
 using aidl::android::hardware::audio::common::AudioOffloadMetadata;
 using aidl::android::hardware::audio::common::getChannelCount;
 using aidl::android::hardware::audio::common::getFrameSizeInBytes;
+using aidl::android::hardware::audio::common::hasMmapFlag;
 using aidl::android::hardware::audio::common::isBitPositionFlagSet;
 using aidl::android::hardware::audio::common::SinkMetadata;
 using aidl::android::hardware::audio::common::SourceMetadata;
@@ -45,6 +46,17 @@ using aidl::android::media::audio::common::MicrophoneDynamicInfo;
 using aidl::android::media::audio::common::MicrophoneInfo;
 
 namespace aidl::android::hardware::audio::core {
+
+namespace {
+
+template <typename MQTypeError>
+auto fmqErrorHandler(const char* mqName) {
+    return [m = std::string(mqName)](MQTypeError fmqError, std::string&& errorMessage) {
+        CHECK_EQ(fmqError, MQTypeError::NONE) << m << ": " << errorMessage;
+    };
+}
+
+}  // namespace
 
 void StreamContext::fillDescriptor(StreamDescriptor* desc) {
     if (mCommandMQ) {
@@ -84,7 +96,7 @@ bool StreamContext::isValid() const {
         LOG(ERROR) << "frame size is invalid";
         return false;
     }
-    if (mDataMQ && !mDataMQ->isValid()) {
+    if (!hasMmapFlag(mFlags) && mDataMQ && !mDataMQ->isValid()) {
         LOG(ERROR) << "data FMQ is invalid";
         return false;
     }
@@ -116,17 +128,19 @@ pid_t StreamWorkerCommonLogic::getTid() const {
 std::string StreamWorkerCommonLogic::init() {
     if (mContext->getCommandMQ() == nullptr) return "Command MQ is null";
     if (mContext->getReplyMQ() == nullptr) return "Reply MQ is null";
-    StreamContext::DataMQ* const dataMQ = mContext->getDataMQ();
-    if (dataMQ == nullptr) return "Data MQ is null";
-    if (sizeof(DataBufferElement) != dataMQ->getQuantumSize()) {
-        return "Unexpected Data MQ quantum size: " + std::to_string(dataMQ->getQuantumSize());
-    }
-    mDataBufferSize = dataMQ->getQuantumCount() * dataMQ->getQuantumSize();
-    mDataBuffer.reset(new (std::nothrow) DataBufferElement[mDataBufferSize]);
-    if (mDataBuffer == nullptr) {
-        return "Failed to allocate data buffer for element count " +
-               std::to_string(dataMQ->getQuantumCount()) +
-               ", size in bytes: " + std::to_string(mDataBufferSize);
+    if (!hasMmapFlag(mContext->getFlags())) {
+        StreamContext::DataMQ* const dataMQ = mContext->getDataMQ();
+        if (dataMQ == nullptr) return "Data MQ is null";
+        if (sizeof(DataBufferElement) != dataMQ->getQuantumSize()) {
+            return "Unexpected Data MQ quantum size: " + std::to_string(dataMQ->getQuantumSize());
+        }
+        mDataBufferSize = dataMQ->getQuantumCount() * dataMQ->getQuantumSize();
+        mDataBuffer.reset(new (std::nothrow) DataBufferElement[mDataBufferSize]);
+        if (mDataBuffer == nullptr) {
+            return "Failed to allocate data buffer for element count " +
+                   std::to_string(dataMQ->getQuantumCount()) +
+                   ", size in bytes: " + std::to_string(mDataBufferSize);
+        }
     }
     if (::android::status_t status = mDriver->init(); status != STATUS_OK) {
         return "Failed to initialize the driver: " + std::to_string(status);
@@ -136,16 +150,26 @@ std::string StreamWorkerCommonLogic::init() {
 
 void StreamWorkerCommonLogic::populateReply(StreamDescriptor::Reply* reply,
                                             bool isConnected) const {
+    static const StreamDescriptor::Position kUnknownPosition = {
+            .frames = StreamDescriptor::Position::UNKNOWN,
+            .timeNs = StreamDescriptor::Position::UNKNOWN};
     reply->status = STATUS_OK;
     if (isConnected) {
         reply->observable.frames = mContext->getFrameCount();
         reply->observable.timeNs = ::android::uptimeNanos();
-        if (auto status = mDriver->refinePosition(&reply->observable); status == ::android::OK) {
-            return;
+        if (auto status = mDriver->refinePosition(&reply->observable); status != ::android::OK) {
+            reply->observable = kUnknownPosition;
+        }
+    } else {
+        reply->observable = reply->hardware = kUnknownPosition;
+    }
+    if (hasMmapFlag(mContext->getFlags())) {
+        if (auto status = mDriver->getMmapPositionAndLatency(&reply->hardware, &reply->latencyMs);
+            status != ::android::OK) {
+            reply->hardware = kUnknownPosition;
+            reply->latencyMs = StreamDescriptor::LATENCY_UNKNOWN;
         }
     }
-    reply->observable.frames = StreamDescriptor::Position::UNKNOWN;
-    reply->observable.timeNs = StreamDescriptor::Position::UNKNOWN;
 }
 
 void StreamWorkerCommonLogic::populateReplyWrongState(
@@ -224,7 +248,9 @@ StreamInWorkerLogic::Status StreamInWorkerLogic::cycle() {
                     mState == StreamDescriptor::State::ACTIVE ||
                     mState == StreamDescriptor::State::PAUSED ||
                     mState == StreamDescriptor::State::DRAINING) {
-                    if (!read(fmqByteCount, &reply)) {
+                    if (hasMmapFlag(mContext->getFlags())) {
+                        populateReply(&reply, mIsConnected);
+                    } else if (!read(fmqByteCount, &reply)) {
                         mState = StreamDescriptor::State::ERROR;
                     }
                     if (mState == StreamDescriptor::State::IDLE ||
@@ -293,13 +319,8 @@ StreamInWorkerLogic::Status StreamInWorkerLogic::cycle() {
         case Tag::flush:
             if (mState == StreamDescriptor::State::PAUSED) {
                 if (::android::status_t status = mDriver->flush(); status == ::android::OK) {
-                    if (::android::status_t status = mDriver->standby(); status == ::android::OK) {
-                        populateReply(&reply, mIsConnected);
-                        mState = StreamDescriptor::State::STANDBY;
-                    } else {
-                        LOG(ERROR) << __func__ << ": standby failed: " << status;
-                        mState = StreamDescriptor::State::ERROR;
-                    }
+                    populateReply(&reply, mIsConnected);
+                    mState = StreamDescriptor::State::STANDBY;
                 } else {
                     LOG(ERROR) << __func__ << ": flush failed: " << status;
                     mState = StreamDescriptor::State::ERROR;
@@ -322,11 +343,7 @@ StreamInWorkerLogic::Status StreamInWorkerLogic::cycle() {
 bool StreamInWorkerLogic::read(size_t clientSize, StreamDescriptor::Reply* reply) {
     ATRACE_CALL();
     StreamContext::DataMQ* const dataMQ = mContext->getDataMQ();
-    StreamContext::DataMQ::Error fmqError = StreamContext::DataMQ::Error::NONE;
-    std::string fmqErrorMsg;
-    const size_t byteCount = std::min(
-            {clientSize, dataMQ->availableToWrite(&fmqError, &fmqErrorMsg), mDataBufferSize});
-    CHECK(fmqError == StreamContext::DataMQ::Error::NONE) << fmqErrorMsg;
+    const size_t byteCount = std::min({clientSize, dataMQ->availableToWrite(), mDataBufferSize});
     const bool isConnected = mIsConnected;
     const size_t frameSize = mContext->getFrameSize();
     size_t actualFrameCount = 0;
@@ -365,8 +382,20 @@ bool StreamInWorkerLogic::read(size_t clientSize, StreamDescriptor::Reply* reply
 const std::string StreamOutWorkerLogic::kThreadName = "writer";
 
 StreamOutWorkerLogic::Status StreamOutWorkerLogic::cycle() {
-    if (mState == StreamDescriptor::State::DRAINING ||
-        mState == StreamDescriptor::State::TRANSFERRING) {
+    if (mState == StreamDescriptor::State::DRAINING && mContext->getForceDrainToDraining() &&
+        mOnDrainReadyStatus == OnDrainReadyStatus::UNSENT) {
+        std::shared_ptr<IStreamCallback> asyncCallback = mContext->getAsyncCallback();
+        if (asyncCallback != nullptr) {
+            ndk::ScopedAStatus status = asyncCallback->onDrainReady();
+            if (!status.isOk()) {
+                LOG(ERROR) << __func__ << ": error from onDrainReady: " << status;
+            }
+            // This sets the timeout for moving into IDLE on next iterations.
+            switchToTransientState(StreamDescriptor::State::DRAINING);
+            mOnDrainReadyStatus = OnDrainReadyStatus::SENT;
+        }
+    } else if (mState == StreamDescriptor::State::DRAINING ||
+               mState == StreamDescriptor::State::TRANSFERRING) {
         if (auto stateDurationMs = std::chrono::duration_cast<std::chrono::milliseconds>(
                     std::chrono::steady_clock::now() - mTransientStateStart);
             stateDurationMs >= mTransientStateDelayMs) {
@@ -379,9 +408,12 @@ StreamOutWorkerLogic::Status StreamOutWorkerLogic::cycle() {
                 // drain or transfer completion. In the stub, we switch unconditionally.
                 if (mState == StreamDescriptor::State::DRAINING) {
                     mState = StreamDescriptor::State::IDLE;
-                    ndk::ScopedAStatus status = asyncCallback->onDrainReady();
-                    if (!status.isOk()) {
-                        LOG(ERROR) << __func__ << ": error from onDrainReady: " << status;
+                    if (mOnDrainReadyStatus != OnDrainReadyStatus::SENT) {
+                        ndk::ScopedAStatus status = asyncCallback->onDrainReady();
+                        if (!status.isOk()) {
+                            LOG(ERROR) << __func__ << ": error from onDrainReady: " << status;
+                        }
+                        mOnDrainReadyStatus = OnDrainReadyStatus::SENT;
                     }
                 } else {
                     mState = StreamDescriptor::State::ACTIVE;
@@ -475,7 +507,9 @@ StreamOutWorkerLogic::Status StreamOutWorkerLogic::cycle() {
                 if (mState != StreamDescriptor::State::ERROR &&
                     mState != StreamDescriptor::State::TRANSFERRING &&
                     mState != StreamDescriptor::State::TRANSFER_PAUSED) {
-                    if (!write(fmqByteCount, &reply)) {
+                    if (hasMmapFlag(mContext->getFlags())) {
+                        populateReply(&reply, mIsConnected);
+                    } else if (!write(fmqByteCount, &reply)) {
                         mState = StreamDescriptor::State::ERROR;
                     }
                     std::shared_ptr<IStreamCallback> asyncCallback = mContext->getAsyncCallback();
@@ -518,6 +552,10 @@ StreamOutWorkerLogic::Status StreamOutWorkerLogic::cycle() {
                             mState = StreamDescriptor::State::IDLE;
                         } else {
                             switchToTransientState(StreamDescriptor::State::DRAINING);
+                            mOnDrainReadyStatus =
+                                    mode == StreamDescriptor::DrainMode::DRAIN_EARLY_NOTIFY
+                                            ? OnDrainReadyStatus::UNSENT
+                                            : OnDrainReadyStatus::IGNORE;
                         }
                     } else {
                         LOG(ERROR) << __func__ << ": drain failed: " << status;
@@ -600,10 +638,7 @@ StreamOutWorkerLogic::Status StreamOutWorkerLogic::cycle() {
 bool StreamOutWorkerLogic::write(size_t clientSize, StreamDescriptor::Reply* reply) {
     ATRACE_CALL();
     StreamContext::DataMQ* const dataMQ = mContext->getDataMQ();
-    StreamContext::DataMQ::Error fmqError = StreamContext::DataMQ::Error::NONE;
-    std::string fmqErrorMsg;
-    const size_t readByteCount = dataMQ->availableToRead(&fmqError, &fmqErrorMsg);
-    CHECK(fmqError == StreamContext::DataMQ::Error::NONE) << fmqErrorMsg;
+    const size_t readByteCount = dataMQ->availableToRead();
     const size_t frameSize = mContext->getFrameSize();
     bool fatal = false;
     int32_t latency = mContext->getNominalLatencyMs();
@@ -666,6 +701,7 @@ ndk::ScopedAStatus StreamCommonImpl::initInstance(
         const std::shared_ptr<StreamCommonInterface>& delegate) {
     mCommon = ndk::SharedRefBase::make<StreamCommonDelegator>(delegate);
     if (!mWorker->start()) {
+        LOG(ERROR) << __func__ << ": Worker start error: " << mWorker->getError();
         return ndk::ScopedAStatus::fromExceptionCode(EX_ILLEGAL_STATE);
     }
     if (auto flags = getContext().getFlags();
@@ -705,6 +741,14 @@ ndk::ScopedAStatus StreamCommonImpl::initInstance(
         } else {
             LOG(WARNING) << __func__ << ": invalid worker tid: " << workerTid;
         }
+    }
+    getContext().getCommandMQ()->setErrorHandler(
+            fmqErrorHandler<StreamContext::CommandMQ::Error>("CommandMQ"));
+    getContext().getReplyMQ()->setErrorHandler(
+            fmqErrorHandler<StreamContext::ReplyMQ::Error>("ReplyMQ"));
+    if (getContext().getDataMQ() != nullptr) {
+        getContext().getDataMQ()->setErrorHandler(
+                fmqErrorHandler<StreamContext::DataMQ::Error>("DataMQ"));
     }
     return ndk::ScopedAStatus::ok();
 }
@@ -828,6 +872,11 @@ ndk::ScopedAStatus StreamCommonImpl::setConnectedDevices(
     mWorker->setIsConnected(!devices.empty());
     mConnectedDevices = devices;
     return ndk::ScopedAStatus::ok();
+}
+
+ndk::ScopedAStatus StreamCommonImpl::setGain(float gain) {
+    LOG(DEBUG) << __func__ << ": gain " << gain;
+    return ndk::ScopedAStatus::fromExceptionCode(EX_UNSUPPORTED_OPERATION);
 }
 
 ndk::ScopedAStatus StreamCommonImpl::bluetoothParametersUpdated() {
