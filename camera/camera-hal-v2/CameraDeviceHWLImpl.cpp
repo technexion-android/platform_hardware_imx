@@ -141,6 +141,14 @@ bool CameraDeviceHwlImpl::PickResByMetaData(int width, int height) {
     return false;
 }
 
+static int resCandidatePreview_os08a20[] = {320, 240, 640, 480, 1280, 720, 1920, 1080};
+static int resCandidatePicture_os08a20[] = {320, 240, 640, 480, 1280, 720, 1920, 1080, 3840, 2160};
+static int resCandidatePreview_ap1302[] = {320, 240, 640, 480, 1280, 720, 1280, 800};
+static int resCandidatePicture_ap1302[] = {320, 240, 640, 480, 1280, 720, 1280, 800};
+static int resCandidatePreview_ov5640[] = {320, 240, 640, 480, 1024, 768, 1280, 720, 1920, 1080};
+static int resCandidatePicture_ov5640[] = {320,  240, 640,  480,  1024, 768,
+                                           1280, 720, 1920, 1080, 2592, 1944};
+
 status_t CameraDeviceHwlImpl::initSensorStaticData() {
     // first read sensor format.
     int index = 0;
@@ -166,39 +174,65 @@ status_t CameraDeviceHwlImpl::initSensorStaticData() {
     availFormats[index++] = v4l2_fourcc('N', 'V', '2', '1');
     mAvailableFormatCount = changeSensorFormats(availFormats, mAvailableFormats, index);
 
-    int resCandidatePreview_os08a20[] = {320, 240, 640, 480, 1280, 720, 1920, 1080};
-    int resCandidatePicture_os08a20[] = {320, 240, 640, 480, 1280, 720, 1920, 1080, 3840, 2160};
-
-    int resCandidatePreview_ap1302[] = {320, 240, 640, 480, 1280, 720, 1280, 800};
-    int resCandidatePicture_ap1302[] = {320, 240, 640, 480, 1280, 720, 1280, 800};
+    int *pResCandidatePreview = NULL;
+    int numResCandidatePreview = 0;
+    int *pResCandidatePicture = NULL;
+    int numResCandidatePicture = 0;
 
     if (strstr(mSensorData.camera_name, "os08a20")) {
-        mPreviewResolutionCount = ARRAY_SIZE(resCandidatePreview_os08a20) < MAX_RESOLUTION_SIZE
-                ? ARRAY_SIZE(resCandidatePreview_os08a20)
-                : MAX_RESOLUTION_SIZE;
-        memcpy(mPreviewResolutions, resCandidatePreview_os08a20,
-               mPreviewResolutionCount * sizeof(int));
-
-        mPictureResolutionCount = ARRAY_SIZE(resCandidatePicture_os08a20) < MAX_RESOLUTION_SIZE
-                ? ARRAY_SIZE(resCandidatePicture_os08a20)
-                : MAX_RESOLUTION_SIZE;
-        memcpy(mPictureResolutions, resCandidatePicture_os08a20,
-               mPictureResolutionCount * sizeof(int));
+        pResCandidatePreview = resCandidatePreview_os08a20;
+        numResCandidatePreview = ARRAY_SIZE(resCandidatePreview_os08a20);
+        pResCandidatePicture = resCandidatePicture_os08a20;
+        numResCandidatePicture = ARRAY_SIZE(resCandidatePicture_os08a20);
+    } else if (strstr(mSensorData.camera_name, "ap1302")) {
+        pResCandidatePreview = resCandidatePreview_ap1302;
+        numResCandidatePreview = ARRAY_SIZE(resCandidatePreview_ap1302);
+        pResCandidatePicture = resCandidatePicture_ap1302;
+        numResCandidatePicture = ARRAY_SIZE(resCandidatePicture_ap1302);
+    } else if (strstr(mSensorData.camera_name, "ov5640")) {
+        pResCandidatePreview = resCandidatePreview_ov5640;
+        numResCandidatePreview = ARRAY_SIZE(resCandidatePreview_ov5640);
+        pResCandidatePicture = resCandidatePicture_ov5640;
+        numResCandidatePicture = ARRAY_SIZE(resCandidatePicture_ov5640);
     } else {
-        mPreviewResolutionCount = ARRAY_SIZE(resCandidatePreview_ap1302) < MAX_RESOLUTION_SIZE
-                ? ARRAY_SIZE(resCandidatePreview_ap1302)
-                : MAX_RESOLUTION_SIZE;
-        memcpy(mPreviewResolutions, resCandidatePreview_ap1302,
-               mPreviewResolutionCount * sizeof(int));
-
-        mPictureResolutionCount = ARRAY_SIZE(resCandidatePicture_ap1302) < MAX_RESOLUTION_SIZE
-                ? ARRAY_SIZE(resCandidatePicture_ap1302)
-                : MAX_RESOLUTION_SIZE;
-        memcpy(mPictureResolutions, resCandidatePicture_ap1302,
-               mPictureResolutionCount * sizeof(int));
+        ALOGE("%s: unsupported camera %s", __func__, mSensorData.camera_name);
+        return BAD_VALUE;
     }
 
-    int i;
+    int i = 0;
+
+    for (i = 0; i < numResCandidatePreview; i += 2) {
+        if (i >= MAX_RESOLUTION_SIZE)
+            break;
+
+        bool bPicked = PickResByMetaData(pResCandidatePreview[i], pResCandidatePreview[i + 1]);
+        if (!bPicked) {
+            ALOGW("%s: res %dx%d is not picked due to settings in config json", __func__,
+                  pResCandidatePreview[i], pResCandidatePreview[i + 1]);
+            continue;
+        }
+
+        mPreviewResolutions[mPreviewResolutionCount] = pResCandidatePreview[i];
+        mPreviewResolutions[mPreviewResolutionCount + 1] = pResCandidatePreview[i + 1];
+        mPreviewResolutionCount += 2;
+    }
+
+    for (i = 0; i < numResCandidatePicture; i += 2) {
+        if (i >= MAX_RESOLUTION_SIZE)
+            break;
+
+        bool bPicked = PickResByMetaData(pResCandidatePicture[i], pResCandidatePicture[i + 1]);
+        if (!bPicked) {
+            ALOGW("%s: res %dx%d is not picked due to settings in config json", __func__,
+                  pResCandidatePicture[i], pResCandidatePicture[i + 1]);
+            continue;
+        }
+
+        mPictureResolutions[mPictureResolutionCount] = pResCandidatePicture[i];
+        mPictureResolutions[mPictureResolutionCount + 1] = pResCandidatePicture[i + 1];
+        mPictureResolutionCount += 2;
+    }
+
     for (i = 0; i < MAX_RESOLUTION_SIZE && i < mPictureResolutionCount; i += 2) {
         ALOGI("SupportedPictureSizes: %d x %d", mPictureResolutions[i], mPictureResolutions[i + 1]);
     }
