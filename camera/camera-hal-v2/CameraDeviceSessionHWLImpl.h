@@ -55,11 +55,6 @@ using google_camera_hal::Stream;
 using google_camera_hal::StreamBuffer;
 using google_camera_hal::StreamConfiguration;
 
-#define OS08A20_SENSOR_WIDTH 3840
-#define OS08A20_SENSOR_HEIGHT 2160
-#define AP1302_SENSOR_WIDTH 1280
-#define AP1302_SENSOR_HEIGHT 800
-
 // 3aState
 struct autoState {
     uint8_t aeMode;
@@ -322,8 +317,8 @@ private:
     std::list<std::unique_ptr<libcamera::FrameBuffer>> mFrameBuffersBusy;
     std::map<libcamera::FrameBuffer *, buffer_handle_t> mFrameBufferHandleMap;
     android_pixel_format_t m_libcamera_stream_format = HAL_PIXEL_FORMAT_YCBCR_422_I;
-    uint32_t m_libcamera_stream_width = OS08A20_SENSOR_WIDTH;
-    uint32_t m_libcamera_stream_height = OS08A20_SENSOR_HEIGHT;
+    uint32_t m_libcamera_stream_width = 0;
+    uint32_t m_libcamera_stream_height = 0;
 
 public:
     int32_t m_raw_v4l2_format = -1;

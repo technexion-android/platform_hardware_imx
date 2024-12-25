@@ -244,15 +244,20 @@ status_t CameraDeviceHwlImpl::initSensorStaticData() {
 
     int fpsRange_os08a20[] = {10, 30, 15, 30, 30, 30};
     int fpsRange_ap1302[] = {10, 30, 15, 30, 30, 30, 15, 60, 60, 60};
+    int fpsRange_ov5640[] = {10, 30, 15, 30, 30, 30};
 
     if (strstr(mSensorData.camera_name, "os08a20")) {
         int rangeCount = ARRAY_SIZE(fpsRange_os08a20);
         mFpsRangeCount = rangeCount <= MAX_FPS_RANGE ? rangeCount : MAX_FPS_RANGE;
         memcpy(mTargetFpsRange, fpsRange_os08a20, mFpsRangeCount * sizeof(int));
-    } else {
+    } else if (strstr(mSensorData.camera_name, "ap1302")) {
         int rangeCount = ARRAY_SIZE(fpsRange_ap1302);
         mFpsRangeCount = rangeCount <= MAX_FPS_RANGE ? rangeCount : MAX_FPS_RANGE;
         memcpy(mTargetFpsRange, fpsRange_ap1302, mFpsRangeCount * sizeof(int));
+    } else {
+        int rangeCount = ARRAY_SIZE(fpsRange_ov5640);
+        mFpsRangeCount = rangeCount <= MAX_FPS_RANGE ? rangeCount : MAX_FPS_RANGE;
+        memcpy(mTargetFpsRange, fpsRange_ov5640, mFpsRangeCount * sizeof(int));
     }
 
     setMaxPictureResolutions();

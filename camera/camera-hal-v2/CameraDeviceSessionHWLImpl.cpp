@@ -160,6 +160,9 @@ status_t CameraDeviceSessionHwlImpl::Initialize(uint32_t camera_id,
     mInQueRequestIdx = 0;
     mDeQueRequestIdx = 0;
 
+    mMaxWidth = pDev->mMaxWidth;
+    mMaxHeight = pDev->mMaxHeight;
+
     // Device may be destroyed after create session, need copy some members from device.
     mCamBlitCopyType = pDev->mCamBlitCopyType;
     mCamBlitCscType = pDev->mCamBlitCscType;
@@ -171,21 +174,13 @@ status_t CameraDeviceSessionHwlImpl::Initialize(uint32_t camera_id,
     else
         m_libcamera_stream_format = HAL_PIXEL_FORMAT_YCBCR_422_I;
 
-    if (strstr(mSensorData.camera_name, "os08a20")) {
-        m_libcamera_stream_width = OS08A20_SENSOR_WIDTH;
-        m_libcamera_stream_height = OS08A20_SENSOR_HEIGHT;
-    } else {
-        m_libcamera_stream_width = AP1302_SENSOR_WIDTH;
-        m_libcamera_stream_height = AP1302_SENSOR_HEIGHT;
-    }
+    m_libcamera_stream_width = mMaxWidth;
+    m_libcamera_stream_height = mMaxHeight;
 
     mPreviewResolutionCount = pDev->mPreviewResolutionCount;
     memcpy(mPreviewResolutions, pDev->mPreviewResolutions, MAX_RESOLUTION_SIZE * sizeof(int));
     mPictureResolutionCount = pDev->mPictureResolutionCount;
     memcpy(mPictureResolutions, pDev->mPictureResolutions, MAX_RESOLUTION_SIZE * sizeof(int));
-
-    mMaxWidth = pDev->mMaxWidth;
-    mMaxHeight = pDev->mMaxHeight;
 
     camera_->acquire();
     camera_->requestCompleted.connect(this, &CameraDeviceSessionHwlImpl::requestComplete);
@@ -726,6 +721,8 @@ status_t CameraDeviceSessionHwlImpl::ConfigurePipeline(
     cfg.size.height = m_libcamera_stream_height;
     cfg.pixelFormat = HalFromat2PixelFormat(m_libcamera_stream_format);
     camCfg->addConfiguration(cfg);
+    ALOGI("%s: camera_->addConfiguration(), buffers %d, width %d, height %d, format 0x%x", __func__,
+          cfg.bufferCount, cfg.size.width, cfg.size.height, cfg.pixelFormat);
 
     switch (camCfg->validate()) {
         case libcamera::CameraConfiguration::Valid:
@@ -751,15 +748,9 @@ status_t CameraDeviceSessionHwlImpl::ConfigurePipeline(
     }
 
     libCameraStreamSet = camera_->streams();
-    ALOGI("%s: libCameraStreamSet size %lu, stream_num %d, libcameraBuffers %u, previewBuffers %u", __func__, libCameraStreamSet.size(),
-          stream_num, mSensorData.mLibcameraBuffers, mSensorData.mPreviewBuffers);
-#if 0
-    if (libCameraStreamSet.size() != 1) {
-        ALOGE("%s: libCameraStreamSet size %d, should be 1", __func__, libCameraStreamSet.size());
-        ret = BAD_VALUE;
-        goto err_out;
-    }
-#endif
+    ALOGI("%s: libCameraStreamSet size %lu, stream_num %d, libcameraBuffers %u, previewBuffers %u",
+          __func__, libCameraStreamSet.size(), stream_num, mSensorData.mLibcameraBuffers,
+          mSensorData.mPreviewBuffers);
 
     mLibCameraStream = *(libCameraStreamSet.begin());
     ALOGI("%s: mLibCameraStream %p", __func__, mLibCameraStream);
