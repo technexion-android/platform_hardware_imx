@@ -216,7 +216,7 @@ private:
     Stream *GetStreamFromStreamBuffer(StreamBuffer *buf);
 
     int CleanRequestsLocked();
-    status_t PickConfigStream(uint32_t pipeline_id, uint8_t intent);
+    status_t PickConfigStreamLocked(uint32_t pipeline_id, uint8_t intent);
     int HandleIntent(HwlPipelineRequest *hwReq);
 
     int HandleImage();
@@ -232,6 +232,12 @@ private:
     Stream *GetStreamById(int32_t stream_id, PipelineInfo *pInfo);
     int32_t GetStreamIdFromLibcameraStream(const libcamera::Stream *libCameraStream);
     uint64_t GetTimestamp(libcamera::Request *request);
+
+    void CleanFrameBuffersLocked();
+    void WaitRequestsFinishAndCleanResource();
+    status_t ConfigLibcameraLocked(uint32_t bufferNum, uint32_t format, uint32_t width,
+                                   uint32_t height);
+    status_t PickAndConfigLibcamera(std::vector<HwlPipelineRequest> &requests);
 
 public:
     CameraSensorMetadata *getSensorData() { return &mSensorData; }
@@ -281,6 +287,7 @@ private:
     int recordIdx;
     int callbackIdx;
     int cameraRWIdx;
+    int rawIdx;
 
     std::unique_ptr<HalCameraMetadata> mSettings;
 
@@ -312,13 +319,16 @@ private:
     };
     CameraState state_;
     std::shared_ptr<libcamera::Camera> camera_;
-    libcamera::Stream *mLibCameraStream;
+    libcamera::Stream *mLibCameraStream = NULL;
     std::list<std::unique_ptr<libcamera::FrameBuffer>> mFrameBuffersFree;
     std::list<std::unique_ptr<libcamera::FrameBuffer>> mFrameBuffersBusy;
     std::map<libcamera::FrameBuffer *, buffer_handle_t> mFrameBufferHandleMap;
     android_pixel_format_t m_libcamera_stream_format = HAL_PIXEL_FORMAT_YCBCR_422_I;
     uint32_t m_libcamera_stream_width = 0;
     uint32_t m_libcamera_stream_height = 0;
+
+    uint8_t mCaptureIntent = -1;
+    bool m_bConfigLibcameraByIntent = false;
 
 public:
     int32_t m_raw_v4l2_format = -1;
