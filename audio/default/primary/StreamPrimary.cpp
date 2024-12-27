@@ -36,6 +36,7 @@ extern "C" {
 #include "alsa_device_profile.h"
 }
 
+#define DEFAULT_PERIOD_COUNT 4
 #define LPA_PERIOD_MS 500
 #define LPA_BUFFER_SECOND 20
 
@@ -361,6 +362,9 @@ std::vector<alsa::DeviceProfile> StreamPrimary::getDeviceProfiles() {
             mIsS16ToS24 = false;
             mConfig = mSavedConfig;
         }
+
+        mConfig->period_size = mBufferSizeFrames;
+        mConfig->period_count = DEFAULT_PERIOD_COUNT;
 
         if (card->out_period_size) {
             mConfig->period_size = card->out_period_size;
