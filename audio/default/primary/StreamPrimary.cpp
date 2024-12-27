@@ -284,7 +284,7 @@ void StreamPrimary::stop() {
 }
 
 ::android::status_t StreamPrimary::refinePosition(StreamDescriptor::Position* position) {
-    if (property_get_int32("vendor.audio.lpa.enable", 0) ||
+    if ((property_get_int32("vendor.audio.lpa.enable", 0) && !mPrimary) ||
             (getContext().getFormat().encoding == "audio/vnd.sony.dsd")) {
         return StreamAlsa::refinePosition(position);
     }
@@ -369,11 +369,11 @@ std::vector<alsa::DeviceProfile> StreamPrimary::getDeviceProfiles() {
             mConfig->period_count = card->out_period_count;
         }
 
-        if (property_get_int32("vendor.audio.lpa.enable", 0)) {
+        if (property_get_int32("vendor.audio.lpa.enable", 0) && !mPrimary) {
             mConfig->period_size = mConfig->rate * LPA_PERIOD_MS / 1000;
             mConfig->period_count = LPA_BUFFER_SECOND * 1000 / LPA_PERIOD_MS;
-            if (!mPrimary)
-                mHardwarePause = true;
+            mHardwarePause = true;
+            LOG(INFO) << __func__ << ": Force set period size as " << LPA_PERIOD_MS << "ms for LPA";
         }
     }
 
