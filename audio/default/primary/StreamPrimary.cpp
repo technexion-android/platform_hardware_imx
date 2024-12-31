@@ -62,13 +62,19 @@ StreamPrimary::StreamPrimary(StreamContext* context, const Metadata& metadata)
       mStubDriver(getContext()) {
     context->startStreamDataProcessor();
     mSavedConfig = mConfig;
-    if (auto flags = getContext().getFlags();
-        (flags.getTag() == AudioIoFlags::Tag::output &&
-         (isBitPositionFlagSet(flags.template get<AudioIoFlags::Tag::output>(),
-                               AudioOutputFlags::PRIMARY)))) {
-        mPrimary = true;
+    auto flags = getContext().getFlags();
+    if (flags.getTag() == AudioIoFlags::Tag::output) {
+        if (isBitPositionFlagSet(flags.template get<AudioIoFlags::Tag::output>(),
+                               AudioOutputFlags::PRIMARY)) {
+            mPrimaryOutput = true;
+            mDirectOutput = false;
+        } else if (isBitPositionFlagSet(flags.template get<AudioIoFlags::Tag::output>(),
+                               AudioOutputFlags::DIRECT)) {
+            mPrimaryOutput = false;
+            mDirectOutput = true;
+        }
     }
-    ALOGD("%s: primary: %d", __func__, mPrimary);
+    ALOGD("%s: mPrimaryOutput: %d, mDirectOutput: %d", __func__, mPrimaryOutput, mDirectOutput);
     mDump = property_get_bool("persist.vendor.audio.dump", false);
     if (mDump) {
         std::ofstream ifile(kDumpInputFile, std::ios::trunc);
@@ -122,7 +128,7 @@ void StreamPrimary::tryStart(){
 }
 
 void StreamPrimary::stop() {
-    if (!mPrimary && mCard) {
+    if (mDirectOutput && mCard) {
         mCard->locked = false;
         LOG(DEBUG) << __func__ << ": unlock the card.";
     }
@@ -161,13 +167,15 @@ void StreamPrimary::stop() {
     if (!mCard) {
         return ::android::NO_INIT;
     }
-    if (mPrimary) {
+    if (mPrimaryOutput) {
         if (!mCard->locked) {
             tryStart();
         }
     } else {
-        mCard->locked = true;
-        LOG(DEBUG) << __func__ << ": lock the card";
+        if (mDirectOutput) {
+            mCard->locked = true;
+            LOG(DEBUG) << __func__ << ": lock the card";
+        }
         tryStart();
     }
 
@@ -183,14 +191,14 @@ void StreamPrimary::stop() {
         return mStubDriver.transfer(buffer, frameCount, actualFrameCount, latencyMs);
     }
 
-    if (mPrimary) {
+    if (mPrimaryOutput) {
         if (mStarted && mCard->locked) {
             LOG(DEBUG) << __func__ << ": standby the primary stream to release the card.";
             standby();
         } else if (!mStarted && !mCard->locked) {
             tryStart();
         }
-    } else /* direct stream */{
+    } else if (mDirectOutput) {
         if (!mStarted) {
             tryStart();
         }
@@ -285,7 +293,7 @@ void StreamPrimary::stop() {
 }
 
 ::android::status_t StreamPrimary::refinePosition(StreamDescriptor::Position* position) {
-    if ((property_get_int32("vendor.audio.lpa.enable", 0) && !mPrimary) ||
+    if ((property_get_int32("vendor.audio.lpa.enable", 0) && mDirectOutput) ||
             (getContext().getFormat().encoding == "audio/vnd.sony.dsd")) {
         return StreamAlsa::refinePosition(position);
     }
@@ -373,7 +381,7 @@ std::vector<alsa::DeviceProfile> StreamPrimary::getDeviceProfiles() {
             mConfig->period_count = card->out_period_count;
         }
 
-        if (property_get_int32("vendor.audio.lpa.enable", 0) && !mPrimary) {
+        if (property_get_int32("vendor.audio.lpa.enable", 0) && mDirectOutput) {
             mConfig->period_size = mConfig->rate * LPA_PERIOD_MS / 1000;
             mConfig->period_count = LPA_BUFFER_SECOND * 1000 / LPA_PERIOD_MS;
             mHardwarePause = true;
