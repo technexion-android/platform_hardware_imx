@@ -348,6 +348,7 @@ HWC3::Error ClientFrameComposer::validateDisplay(Display* display, DisplayChange
     auto [_, overlaySupported] = client->isOverlaySupport(displayId);
     bool deviceComposition = true;
     bool mustDeviceComposition = false;
+    bool fallBackToClient = false;
 
     bool layerSkiped = false; // check if need overlay checking for layer or not
     int32_t activeConfigId;
@@ -392,7 +393,7 @@ HWC3::Error ClientFrameComposer::validateDisplay(Display* display, DisplayChange
     for (Layer* layer : layers) {
         const auto layerId = layer->getId();
         const auto composeType = layer->getCompositionType();
-        if ((int)composeType == Composition_NXP_PRIVATE)
+        if ((int)composeType == Composition_NXP_PRIVATE || composeType == Composition::INVALID)
             continue;
 
         if (overlaySupported && !layerSkiped) {
@@ -423,6 +424,10 @@ HWC3::Error ClientFrameComposer::validateDisplay(Display* display, DisplayChange
         }
 
         layersForComposition.push_back(layer);
+        if (layer->hasLuts()) {
+            fallBackToClient = true;
+        }
+
         if (mG2dComposer->isValid()) {
             // if some layer cannot support, not use device composition
             deviceComposition = deviceComposition && mG2dComposer->checkDeviceComposition(layer);
@@ -432,7 +437,7 @@ HWC3::Error ClientFrameComposer::validateDisplay(Display* display, DisplayChange
     }
 
     if (!mG2dComposer->isValid() || (!mustDeviceComposition && !deviceComposition) ||
-        (display->getColorTransformHint() != common::ColorTransform::IDENTITY)) {
+        (display->getColorTransformHint() != common::ColorTransform::IDENTITY) || fallBackToClient) {
         /* currently Device Composer(G2D/DPU) cannot process color transform */
         for (auto& layer : layersForComposition) {
             const auto layerId = layer->getId();
