@@ -21,6 +21,7 @@
 #include <utils/Mutex.h>
 #include <cutils/native_handle.h>
 #include "ImageUtils.h"
+#include <vector>
 
 namespace fsl {
 
