@@ -75,10 +75,9 @@ StreamPrimary::StreamPrimary(StreamContext* context, const Metadata& metadata)
         }
     }
     ALOGD("%s: mPrimaryOutput: %d, mDirectOutput: %d", __func__, mPrimaryOutput, mDirectOutput);
-    mDump = property_get_bool("persist.vendor.audio.dump", false);
     if (mDump) {
-        std::ofstream ifile(kDumpInputFile, std::ios::trunc);
-        std::ofstream ofile(kDumpOutputFile, std::ios::trunc);
+        std::ofstream ifile(kDumpPrimaryInputFile, std::ios::trunc);
+        std::ofstream ofile(kDumpPrimaryOutputFile, std::ios::trunc);
     }
 }
 
@@ -100,22 +99,6 @@ StreamPrimary::StreamPrimary(StreamContext* context, const Metadata& metadata)
         proxy_pause(mAlsaDeviceProxies[0].get());
     }
     return isStubStreamOnWorker() ? mStubDriver.pause() : StreamAlsa::pause();
-}
-
-void StreamPrimary::dump(const void *buffer, size_t bytes, const char *name) {
-    if ((buffer == NULL) || (bytes == 0) || (name == NULL))
-        return;
-
-    int fdDump = open(name, O_CREAT | O_APPEND | O_WRONLY, S_IRWXU | S_IRWXG);
-    if (fdDump < 0) {
-        ALOGW("%s: file open error, srcFile: %s, fd %d", __func__, name, fdDump);
-        return;
-    }
-
-    write(fdDump, buffer, bytes);
-    ::close(fdDump);
-
-    return;
 }
 
 void StreamPrimary::tryStart(){
@@ -243,10 +226,8 @@ void StreamPrimary::stop() {
         return ::android::OK;
     }
 
-    if (mDump && mIsInput)
-        dump(buffer, frameCount * mFrameSizeBytes, kDumpInputFile);
-    else if (mDump && !mIsInput)
-        dump(buffer, frameCount * mFrameSizeBytes, kDumpOutputFile);
+    if (mDump && !mIsInput)
+        dump(buffer, frameCount * mFrameSizeBytes, kDumpPrimaryOutputFile);
 
     if (mIsStereoToMono) {
         if (mIsInput) {
@@ -266,7 +247,7 @@ void StreamPrimary::stop() {
         }
         *actualFrameCount *= 2;
 
-        return ::android::OK;
+        goto done;
     }
 
     if (mIsS32ToS16) {
@@ -280,7 +261,7 @@ void StreamPrimary::stop() {
 
         *actualFrameCount /= 2;
 
-        return ::android::OK;
+        goto done;
     }
 
     if (mIsS16ToS24) {
@@ -294,11 +275,15 @@ void StreamPrimary::stop() {
 
         *actualFrameCount /= 2;
 
-        return ::android::OK;
+        goto done;
     }
 
     RETURN_STATUS_IF_ERROR(
             StreamAlsa::transfer(buffer, frameCount, actualFrameCount, latencyMs));
+
+done:
+    if (mDump && mIsInput)
+        dump(buffer, frameCount * mFrameSizeBytes, kDumpPrimaryInputFile);
     return ::android::OK;
 }
 
