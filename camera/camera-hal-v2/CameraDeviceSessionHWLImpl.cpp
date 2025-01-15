@@ -616,6 +616,9 @@ status_t CameraDeviceSessionHwlImpl::ConfigLibcameraLocked(uint32_t bufferNum, u
     mLibCameraStream = *(libCameraStreamSet.begin());
     ALOGI("%s: mLibCameraStream %p", __func__, mLibCameraStream);
 
+    char socType[128] = {0};
+    property_get("ro.boot.soc_type", socType, "");
+
     // allocate libcamera frame buffers
     uint32_t allocedNum = 0;
     for (uint32_t i = 0; i < bufferNum; i++) {
@@ -624,7 +627,15 @@ status_t CameraDeviceSessionHwlImpl::ConfigLibcameraLocked(uint32_t bufferNum, u
         // ??? fix me
         uint64_t usage = GRALLOC_USAGE_HW_CAMERA_WRITE | GRALLOC_USAGE_SW_READ_OFTEN |
                 GRALLOC_USAGE_PRIVATE_3;
-        auto status = GraphicBufferAllocator::get().allocate(width, height, format,
+
+        uint32_t allocWidth = width;
+        if (strstr(socType, "imx8mn") || strstr(socType, "imx8qm") || \
+            strstr(socType, "imx8qxp") || strstr(socType, "imx8mp")) {
+            allocWidth = width * 2;
+            ALOGI("%s: double width from %u to %u", __func__, width, allocWidth);
+        }
+
+        auto status = GraphicBufferAllocator::get().allocate(allocWidth, height, format,
                                                              /*layerCount=*/1, usage, &hnd,
                                                              &bufferStride, "NxpCamera");
         if (status != ::android::OK) {
