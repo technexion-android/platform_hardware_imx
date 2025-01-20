@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 NXP.
+ * Copyright 2023-2025 NXP.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -50,7 +50,8 @@ public:
     static ImageProcess* getInstance();
     ~ImageProcess();
 
-    int ConvertImage(ImxImageBuffer& dst, ImxImageBuffer& src, ImxEngine engine);
+    int ConvertImage(ImxImageBuffer& dst, ImxImageBuffer& src, ImxEngine engine,
+                     bool debug = false);
     void SetMiddleBuffers(std::vector<ImxImageBuffer *> &MiddleBuffers);
 
     buffer_handle_t createBufferHandle(ImxImageBuffer& imxBuf);
@@ -90,6 +91,7 @@ private:
     ImageProcess();
     static Mutex sLock;
     static ImageProcess* sInstance;
+    bool mDebug = false;
 
     typedef int (ImageProcess::*ConvertByEngine)(ImxImageBuffer&, ImxImageBuffer&);
     ConvertByEngine g_EngFuncList[ENG_NUM] = {
