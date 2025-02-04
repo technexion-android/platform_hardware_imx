@@ -43,6 +43,8 @@ public:
     // Get the first card which supports audioDevice; NULL if not found.
     static struct audio_card* getCardForDevice(const ::aidl::android::media::audio::common::AudioDevice& audioDevice);
     static struct audio_card* getCardForDevice(const audio_devices_t& audioDevice);
+    // Get the first card which supports audioBus; NULL if not found.
+    static struct audio_card* getCardForBus(const char *bus_name);
 
 private:
     static std::vector<struct audio_card *>mCards;
