@@ -27,6 +27,9 @@
 #include <system/audio-base.h>
 #include <system/audio-hal-enums.h>
 
+using aidl::android::media::audio::common::AudioDeviceType;
+using aidl::android::media::audio::common::AudioDeviceAddress;
+
 namespace aidl::android::hardware::audio::core {
 static struct audio_card* s_audio_card_list[MAX_SUPPORT_CARD_LIST_SIZE];
 
@@ -56,11 +59,22 @@ void AudioCardManager::release()
 struct audio_card* AudioCardManager::getCardForDevice(const ::aidl::android::media::audio::common::AudioDevice& audioDevice)
 {
     struct audio_card* card = NULL;
-    audio_devices_t audio_device = VALUE_OR_FATAL(
-            aidl2legacy_AudioDeviceDescription_audio_devices_t(audioDevice.type));
+    audio_devices_t audio_device;
+    const char *bus_name;
 
-    LOG(INFO) << __func__ << ": device: " << audioDevice.toString();
-    return getCardForDevice(audio_device);
+    const ::aidl::android::media::audio::common::AudioDeviceAddress& deviceAddress = audioDevice.address;
+
+    if (audioDevice.type.type == AudioDeviceType::OUT_BUS) {
+        LOG(INFO) << __func__ << ": BUS : " << audioDevice.toString();
+        bus_name = ::android::internal::ToString(deviceAddress.get<AudioDeviceAddress::Tag::id>()).c_str();
+        card = getCardForBus(bus_name);
+    } else {
+        LOG(INFO) << __func__ << ": DEVICE: " << audioDevice.toString();
+        audio_device = VALUE_OR_FATAL(
+            aidl2legacy_AudioDeviceDescription_audio_devices_t(audioDevice.type));
+        card = getCardForDevice(audio_device);
+    }
+    return card;
 }
 
 struct audio_card* AudioCardManager::getCardForDevice(const audio_devices_t& audioDevice)
@@ -87,6 +101,27 @@ struct audio_card* AudioCardManager::getCardForDevice(const audio_devices_t& aud
         ALOGI("%s: device: %x, card%d: %s", __func__, audioDevice, card->card, card->driver_name);
     else
         ALOGE("%s: device: %x, card not found.", __func__, audioDevice);
+
+    return card;
+}
+
+struct audio_card* AudioCardManager::getCardForBus(const char *bus_name)
+{
+    struct audio_card* card = NULL;
+
+    for (const auto& c : mCards) {
+        if (c->bus_name) {
+            if (!strcmp(bus_name, c->bus_name)) {
+                card = c;
+                break;
+            }
+        }
+    }
+
+    if (card)
+        ALOGI("%s: bus: %s, card%d: %s", __func__, bus_name, card->card, card->driver_name);
+    else
+        ALOGE("%s: bus: %s, card not found.", __func__, bus_name);
 
     return card;
 }
