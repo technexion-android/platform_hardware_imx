@@ -322,7 +322,7 @@ private:
     libcamera::Stream *mLibCameraStream = NULL;
     std::list<std::unique_ptr<libcamera::FrameBuffer>> mFrameBuffersFree;
     std::list<std::unique_ptr<libcamera::FrameBuffer>> mFrameBuffersBusy;
-    std::map<libcamera::FrameBuffer *, buffer_handle_t> mFrameBufferHandleMap;
+    std::map<libcamera::FrameBuffer *, ImxImageBuffer> mFrameBufferHandleMap;
     android_pixel_format_t m_libcamera_stream_format = HAL_PIXEL_FORMAT_YCBCR_422_I;
     uint32_t m_libcamera_stream_width = 0;
     uint32_t m_libcamera_stream_height = 0;

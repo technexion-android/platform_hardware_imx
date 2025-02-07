@@ -555,9 +555,10 @@ void CameraDeviceSessionHwlImpl::CleanFrameBuffersLocked() {
             continue;
         }
 
-        buffer_handle_t hnd = mFrameBufferHandleMap[frameBuffer];
-        GraphicBufferAllocator::get().free(hnd);
-        ALOGI("%s: mFrameBufferHandleMap[%p] %p, this %p", __func__, frameBuffer, hnd, this);
+        ImxImageBuffer imgBuf = mFrameBufferHandleMap[frameBuffer];
+        FreePhyBuffer(imgBuf.buffer);
+        ALOGI("%s: mFrameBufferHandleMap[%p] %p, this %p", __func__, frameBuffer, imgBuf.buffer,
+              this);
 
         it.reset();
     }
@@ -623,10 +624,7 @@ status_t CameraDeviceSessionHwlImpl::ConfigLibcameraLocked(uint32_t bufferNum, u
     uint32_t allocedNum = 0;
     for (uint32_t i = 0; i < bufferNum; i++) {
         uint32_t bufferStride;
-        buffer_handle_t hnd;
-        // ??? fix me
-        uint64_t usage = GRALLOC_USAGE_HW_CAMERA_WRITE | GRALLOC_USAGE_SW_READ_OFTEN |
-                GRALLOC_USAGE_PRIVATE_3;
+        ImxImageBuffer srcBuf;
 
         uint32_t allocWidth = width;
         if (strstr(socType, "imx8mn") || strstr(socType, "imx8qm") || \
@@ -635,32 +633,36 @@ status_t CameraDeviceSessionHwlImpl::ConfigLibcameraLocked(uint32_t bufferNum, u
             ALOGI("%s: double width from %u to %u", __func__, width, allocWidth);
         }
 
-        auto status = GraphicBufferAllocator::get().allocate(allocWidth, height, format,
-                                                             /*layerCount=*/1, usage, &hnd,
-                                                             &bufferStride, "NxpCamera");
-        if (status != ::android::OK) {
-            ALOGE("%s: failed to allocate buffer:%d x %d, format=%x, usage=%lx, ret=%d", __func__,
-                  width, height, format, usage, status);
+        ret = AllocPhyBuffer(allocWidth, height, format, srcBuf, true);
+        if (ret) {
+            ALOGE("%s: failed to allocate buffer:%d x %d, format=%x, ret=%d", __func__, allocWidth,
+                  height, format, ret);
             ret = BAD_VALUE;
             goto err_out;
         }
 
+        // Recover to the actual width.
+        srcBuf.mWidth = width;
+        srcBuf.mFormatSize = getSizeByForamtRes(format, width, height, false);
+        if (srcBuf.mFormatSize == 0)
+            srcBuf.mFormatSize = srcBuf.mSize;
+
         allocedNum++;
 
         std::unique_ptr<libcamera::FrameBuffer> frameBuffer =
-                CreateFrameBuffer(hnd, mLibCameraStream->configuration());
+                CreateFrameBuffer(srcBuf.buffer, mLibCameraStream->configuration());
         if (frameBuffer == nullptr) {
-            ALOGE("%s, CreateFrameBuffer faliled, hnd %p, index %d", __func__, hnd, i);
+            ALOGE("%s, CreateFrameBuffer faliled, hnd %p, index %d", __func__, srcBuf.buffer, i);
             ret = BAD_VALUE;
             goto err_out;
         }
 
         libcamera::FrameBuffer *pfb = frameBuffer.get();
 
-        mFrameBufferHandleMap[pfb] = hnd;
+        mFrameBufferHandleMap[pfb] = srcBuf;
         mFrameBuffersFree.push_back(std::move(frameBuffer));
-        ALOGV("%s: mFrameBufferHandleMap[%p] %p, mFrameBuffersFree size %lu, this %p", __func__,
-              pfb, hnd, mFrameBuffersFree.size(), this);
+        ALOGI("%s: mFrameBufferHandleMap[%p] %p, mFrameBuffersFree size %lu, this %p", __func__,
+              pfb, srcBuf.buffer, mFrameBuffersFree.size(), this);
     }
 
     m_libcamera_stream_width = width;
@@ -1764,26 +1766,17 @@ void CameraDeviceSessionHwlImpl::requestComplete(libcamera::Request *request) {
     }
     Mutex::Autolock _l(mLock);
     libcamera::FrameBuffer *frameBuffer = request->findBuffer(mLibCameraStream);
-    buffer_handle_t hnd = mFrameBufferHandleMap[frameBuffer];
-    uint64_t usage = GRALLOC_USAGE_PRIVATE_3 | GRALLOC_USAGE_HW_CAMERA_WRITE;
-    Stream stream;
-    memset(&stream, 0, sizeof(stream));
-    stream.width = m_libcamera_stream_width;
-    stream.height = m_libcamera_stream_height;
-    stream.format = m_libcamera_stream_format;
-    stream.usage = usage;
-    stream.id = 0;
-    ImxStreamBuffer *srcBuf = CreateImxStreamBufferFromBufferHandle(hnd, &stream);
-    if (srcBuf == NULL) {
-        ALOGE("%s: CreateImxStreamBufferFromBufferHandle failed, hnd %p, res %dx%d", __func__, hnd,
-              stream.width, stream.height);
-        return;
-    }
+    ImxImageBuffer srcImgBuf = mFrameBufferHandleMap[frameBuffer];
+    ImxStreamBuffer srcBuf;
+    memcpy(&srcBuf, &srcImgBuf, sizeof(srcImgBuf));
+    srcBuf.mStream = new ImxStream(m_libcamera_stream_width, m_libcamera_stream_height,
+                                   m_libcamera_stream_format, srcBuf.mUsage, 0, false);
+    ALOGV("srcBuf %dx%d, 0x%x", srcBuf.mWidth, srcBuf.mHeight, srcBuf.mFormat);
 
-    ProcessCapbuf2MultiOutbuf(srcBuf, hwReq->output_buffers, frameRequest->outBufferFences,
+    ProcessCapbuf2MultiOutbuf(&srcBuf, hwReq->output_buffers, frameRequest->outBufferFences,
                               requestMeta);
 
-    ReleaseImxStreamBuffer(srcBuf);
+    delete srcBuf.mStream;
 
     HandleMetaLocked(result->result_metadata, timestamp_ns);
 
