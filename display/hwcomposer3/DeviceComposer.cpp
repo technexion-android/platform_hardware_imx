@@ -468,7 +468,7 @@ int DeviceComposer::composeLayerLocked(Layer* layer, bool bypass) {
 
         if (!(type == Composition::SOLID_COLOR) && layerBuffer) {
             setG2dSurface(sSurfaceX, layerBuffer, srect);
-#ifndef G2D_LIMITATION_PXP  // PXP G2D don't support DITHER
+#ifndef G2D_LIMITATION_PXP // PXP G2D don't support DITHER
             if ((info.format == static_cast<uint32_t>(common::PixelFormat::RGB_565)) &&
                 (layerInfo.format == static_cast<uint32_t>(common::PixelFormat::RGBA_8888) ||
                  layerInfo.format == static_cast<uint32_t>(common::PixelFormat::RGBX_8888) ||
