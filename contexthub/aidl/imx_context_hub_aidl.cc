@@ -270,6 +270,10 @@ ScopedAStatus ContextHub::registerCallback(
     }
   }
   mCallback = cb;
+  if (mFrameworkCallback == nullptr) {
+      mFrameworkCallback = cb;
+  }
+
   if (cb != nullptr) {
     binder_status_t binder_status =
         AIBinder_linkToDeath(cb->asBinder().get(), mDeathRecipient.get(), this);
@@ -466,6 +470,12 @@ void ContextHub::handleServiceDeath() {
   {
     std::lock_guard<std::mutex> lock(mCallbackMutex);
     mCallback.reset();
+    mCallback = mFrameworkCallback;
+    binder_status_t binder_status =
+      AIBinder_linkToDeath(mCallback->asBinder().get(), mDeathRecipient.get(), this);
+    if (binder_status != STATUS_OK) {
+      ALOGE("Failed to link to death");
+    }
   }
   {
     std::lock_guard<std::mutex> lock(mConnectedHostEndpointsMutex);

@@ -236,6 +236,7 @@ class ContextHub : public BnContextHub,
   // access (invocations).
   std::mutex mCallbackMutex;
   std::shared_ptr<IContextHubCallback> mCallback;
+  std::shared_ptr<IContextHubCallback> mFrameworkCallback;
 
   ndk::ScopedAIBinder_DeathRecipient mDeathRecipient;
 
