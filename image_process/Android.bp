@@ -77,3 +77,38 @@ cc_library_shared {
         "device/nxp/common/kernel-headers",
     ],
 }
+
+cc_binary {
+    name: "ImageTest",
+    vendor: true,
+
+    srcs: [
+        "ImageTest.cpp",
+    ],
+
+    cflags: [
+        "-Wextra",
+        "-Wall",
+    ],
+
+    shared_libs: [
+        "libbase",
+        "libcutils",
+        "liblog",
+        "libutils",
+        "libimageprocess",
+    ],
+
+    include_dirs: [
+        "hardware/libhardware/include",
+        "device/nxp/common/kernel-headers",
+        "system/core/libsystem/include/system",
+        "vendor/nxp/imx_opencl_converter/ghdr",
+        "vendor/nxp-opensource/imx/include",
+        "vendor/nxp-opensource/imx/opencl-2d",
+    ],
+
+    local_include_dirs: [
+        ".",
+    ],
+}
