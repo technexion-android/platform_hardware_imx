@@ -569,7 +569,7 @@ int main() {
     ErrorType error;
     int ret = 0;
 
-    EleOperation ops(MU_CHANNEL_PLAT_HSM_SECONDARY);
+    EleOperation ops(MU_CHANNEL_PLAT_HSM);
     if (ops.eleOpenDeviceNode() != ELE_NO_ERROR) {
         ALOGE("Test: Failed to open ELE device nodes!");
         ret = -1;
