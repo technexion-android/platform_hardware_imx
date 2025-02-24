@@ -78,7 +78,6 @@ enum MuType {
     MU_CHANNEL_INVALID = -1,
     MU_CHANNEL_PLAT_HSM,
     MU_CHANNEL_PLAT_HSM_NVM,
-    MU_CHANNEL_PLAT_HSM_SECONDARY,
 };
 
 typedef enum key_type {
@@ -256,6 +255,19 @@ typedef struct ele_mu_ioctl_shared_mem_cfg {
     uint32_t base_offset;
     uint32_t size;
 } ele_mu_ioctl_shared_mem_cfg;
+
+struct ele_ioctl_cmd_snd_rcv_rsp_info {
+    uint32_t *tx_buf;
+    int tx_buf_sz;
+    uint32_t *rx_buf;
+    int rx_buf_sz;
+};
+
+struct ele_mu_ioctl_signed_message {
+    uint8_t *message;
+    uint32_t msg_size;
+    uint32_t error_code;
+};
 
 struct msg_hdr {
     uint8_t ver;

@@ -77,7 +77,8 @@
 #define ELE_MU_IOCTL_SHARED_BUF_CFG _IOW(ELE_MU_IOCTL, 0x02, struct ele_mu_ioctl_shared_mem_cfg)
 #define ELE_MU_IOCTL_SETUP_IOBUF _IOWR(ELE_MU_IOCTL, 0x03, struct ele_mu_ioctl_iobuf)
 #define ELE_MU_IOCTL_GET_MU_INFO _IOR(ELE_MU_IOCTL, 0x04, struct ele_mu_info)
-#define ELE_MU_IOCTL_SIGNED_MESSAGE     _IOWR(ELE_MU_IOCTL, 0x05,
+#define ELE_MU_IOCTL_SIGNED_MESSAGE     _IOWR(ELE_MU_IOCTL, 0x05, struct ele_mu_ioctl_signed_message)
+#define ELE_IOCTL_CMD_SEND_RCV_RSP _IOWR(ELE_MU_IOCTL, 0x07, struct ele_ioctl_cmd_snd_rcv_rsp_info)
 
 #define NVM_EXPORT_STATUS_SUCCESS (0xBA2CC2AB)
 #define NVM_CHUNK_GET_CHUNK_SUCCESS (0xCA3BB3AC)

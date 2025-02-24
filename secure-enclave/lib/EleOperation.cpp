@@ -19,9 +19,7 @@
 #include <EleOperation.h>
 #include <fcntl.h>
 
-static const char hsm_mu_path[] = "/dev/hsm1_ch0";
-static const char hsm_mu_nvm_path[] = "/dev/hsm1_ch1";
-static const char hsm_mu_secondary_path[] = "/dev/hsm1_ch2";
+static const char hsm_mu_path[] = "/dev/hsm0_ch0";
 
 #define SIZE_MSG(msg) sizeMsg(sizeof(msg))
 #define ROUND_UP(x, alignment) ((x + alignment - 1) & ~(alignment - 1))
@@ -111,6 +109,27 @@ uint32_t EleOperation::receiveMuMsg(void *msg, uint32_t respLen) {
     }
 
     return ret;
+}
+
+ErrorType EleOperation::sendAndReceiveMuMsg(void *req, uint32_t reqLen, void *resp, uint32_t respLen) {
+    std::mutex lock;
+    std::unique_lock<std::mutex> stateLock(lock);
+    struct ele_ioctl_cmd_snd_rcv_rsp_info send_and_receive_rsp_info = { 0 };
+    int ret = 0;
+
+    send_and_receive_rsp_info.tx_buf = (uint32_t *)req;
+    send_and_receive_rsp_info.tx_buf_sz = reqLen;
+    send_and_receive_rsp_info.rx_buf = (uint32_t *)resp;
+    send_and_receive_rsp_info.rx_buf_sz = respLen;
+
+    ret = ioctl(this->fd, ELE_IOCTL_CMD_SEND_RCV_RSP, &send_and_receive_rsp_info);
+    if (ret < 0) {
+        /* Send or receive mu message failed */
+        ALOGE("ELE send/receive mu message failed! error: %d", errno);
+        return ELE_COMMUNICATION_ERROR;
+    }
+
+    return ELE_NO_ERROR;
 }
 
 ErrorType EleOperation::receiveNVMRequest(struct mu_msg *cmd, uint32_t *cmdLen, uint32_t *cmdID) {
@@ -217,24 +236,13 @@ uint32_t EleOperation::retrivePhyAddress(uint8_t *src, uint32_t size, uint32_t f
 
 ErrorType EleOperation::eleOpenDeviceNode() {
     int error;
-    const char *path = nullptr;
+    /* Switch the hsm service by default */
+    const char *path = hsm_mu_path;
 
     /* Make sure we are not opening without close. */
     if (fd >= 0) {
         ALOGE("Open another ele device without closing the previous one!");
         return ELE_GENERAL_ERROR;
-    }
-
-    /* Select the correct device node according to the MU type */
-    if (mu_type == MU_CHANNEL_PLAT_HSM)
-        path = hsm_mu_path;
-    else if (mu_type == MU_CHANNEL_PLAT_HSM_NVM)
-        path = hsm_mu_nvm_path;
-    else if (mu_type == MU_CHANNEL_PLAT_HSM_SECONDARY) {
-        path = hsm_mu_secondary_path;
-    } else {
-        ALOGE("Invalid MU device type!");
-        return ELE_INVALID_MU_TYPE;
     }
 
     ALOGI("Opening ELE MU path: %s.", path);
@@ -253,15 +261,6 @@ ErrorType EleOperation::eleOpenDeviceNode() {
         return ELE_COMMUNICATION_ERROR;
     }
 
-    /* NVM: Configure the device to accept incoming commands. */
-    if ((mu_type == MU_CHANNEL_PLAT_HSM_NVM) &&
-        TEMP_FAILURE_RETRY(ioctl(fd, ELE_MU_IOCTL_ENABLE_CMD_RCV))) {
-        ALOGE("Failed to configure for NVM, err = %d.", error);
-        close(fd);
-        fd = -1;
-        return ELE_COMMUNICATION_ERROR;
-    }
-
     return ELE_NO_ERROR;
 }
 
@@ -273,10 +272,24 @@ ErrorType EleOperation::eleCloseDeviceNode() {
     return ELE_NO_ERROR;
 }
 
+ErrorType EleOperation::setChannelAsNVM(void) {
+    /* NVM: Configure the device to accept incoming commands. */
+    if ((mu_type == MU_CHANNEL_PLAT_HSM_NVM) &&
+        TEMP_FAILURE_RETRY(ioctl(fd, ELE_MU_IOCTL_ENABLE_CMD_RCV))) {
+        ALOGE("Failed to configure for NVM!");
+        close(fd);
+        fd = -1;
+        return ELE_COMMUNICATION_ERROR;
+    }
+
+    return ELE_NO_ERROR;
+}
+
 ErrorType EleOperation::eleSendAndReciveMsg(struct mu_msg *msg, uint32_t req_len,
                                             uint32_t *respLen) {
     struct mu_rsp *rsp;
     uint32_t crc = 0;
+    ErrorType error = ELE_NO_ERROR;
 
     /* valid "fd" means ele mu device node ready */
     if (fd < 0) {
@@ -289,13 +302,10 @@ ErrorType EleOperation::eleSendAndReciveMsg(struct mu_msg *msg, uint32_t req_len
         return ELE_INVALID_MESSAGE;
     }
 
-    /* Send the request */
-    if (sendMuMsg((void *)msg, req_len) != ELE_NO_ERROR)
-        return ELE_COMMUNICATION_ERROR;
-
-    /* Read the response */
-    if (receiveMuMsg((void *)msg, *respLen) != *respLen)
-        return ELE_COMMUNICATION_ERROR;
+    /* Send the request & read the response */
+    error = sendAndReceiveMuMsg((void *)msg, req_len, (void *)msg, *respLen);
+    if (error != ELE_NO_ERROR)
+        return error;
 
     /* Check response crc */
     if (msg->header.size > STORAGE_NB_WORDS_MAX_NO_CRC) {

@@ -61,13 +61,14 @@ public:
     ErrorType eleCloseStorage(uint32_t nvmStorageHandle);
     ErrorType eleNvmMasterImport(struct nvm_context *nvmCtx);
     ErrorType eleHandleNVMRequest(struct nvm_context *nvmCtx);
+    ErrorType setChannelAsNVM(void);
 
 private:
     ErrorType sendMuMsg(void *msg, uint32_t reqLen);
     uint32_t receiveMuMsg(void *msg, uint32_t respLen);
     uint32_t retrivePhyAddress(uint8_t *src, uint32_t size, uint32_t flag);
-    ErrorType eleSendAndReciveMsg(struct mu_msg *msg, uint32_t len);
     ErrorType eleSendAndReciveMsg(struct mu_msg *msg, uint32_t reqLen, uint32_t *respLen);
+    ErrorType sendAndReceiveMuMsg(void *req, uint32_t reqLen, void *resp, uint32_t respLen);
     ErrorType eleCloseDeviceNode(void);
 
     /* NVM operations */
