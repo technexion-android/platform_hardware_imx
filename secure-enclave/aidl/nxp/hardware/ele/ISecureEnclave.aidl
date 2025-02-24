@@ -448,7 +448,7 @@ interface ISecureEnclave {
 	 * Exception or error status will be returned for errors, so caller will have to catch
 	 * the exception or handle the error status correctly.
 	 */
-	int eleCipherAEOperation(in int keyId, in byte[] iv,
+	int eleCipherAeadOperation(in int keyId, in byte[] iv,
 					in int flags, in int algo,
 					in byte[] aad,
 					in byte [] input,

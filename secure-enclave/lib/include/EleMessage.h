@@ -595,7 +595,7 @@ typedef struct cipher_operation_attr {
     uint32_t output_size;
 } cipher_operation_attr;
 
-typedef struct cipher_ae_msg_cmd {
+typedef struct cipher_aead_msg_cmd {
     uint32_t cipher_hdl;
     uint32_t key_id;
     uint32_t iv_addr;
@@ -611,14 +611,14 @@ typedef struct cipher_ae_msg_cmd {
     uint32_t input_size;
     uint32_t output_size;
     uint32_t crc;
-} cipher_ae_msg_cmd;
+} cipher_aead_msg_cmd;
 
-typedef struct cipher_ae_msg_rsp {
+typedef struct cipher_aead_msg_rsp {
     uint32_t rsp_code;
     uint32_t output_size;
-} cipher_ae_msg_rsp;
+} cipher_aead_msg_rsp;
 
-typedef struct cipher_ae_operation_attr {
+typedef struct cipher_aead_operation_attr {
     uint32_t key_id;
     uint8_t *iv_addr;
     uint16_t iv_size;
@@ -630,7 +630,7 @@ typedef struct cipher_ae_operation_attr {
     uint8_t *output_addr;
     uint32_t input_size;
     uint32_t output_size;
-} cipher_ae_operation_attr;
+} cipher_aead_operation_attr;
 
 typedef struct sign_gen_open_msg_cmd {
     uint32_t key_store_handle;

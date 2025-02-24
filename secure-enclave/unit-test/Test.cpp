@@ -339,8 +339,8 @@ exit:
     return ret;
 }
 
-int test_cipher_ae_operation(EleOperation *ops, uint32_t keyStoreHandler, uint32_t keyMgtHandle) {
-    cipher_ae_operation_attr sym_key_ae_op_addr;
+int test_cipher_aead_operation(EleOperation *ops, uint32_t keyStoreHandler, uint32_t keyMgtHandle) {
+    cipher_aead_operation_attr sym_key_aead_op_addr;
     gen_key_attribute keyAttribute;
     ErrorType error;
     uint32_t cipherHandle = 0;
@@ -363,10 +363,10 @@ int test_cipher_ae_operation(EleOperation *ops, uint32_t keyStoreHandler, uint32
     keyAttribute.flags = OPERATION_SYNC;
     error = ops->eleGenerateKey(keyMgtHandle, &keyID, &keyAttribute);
     if (error != ELE_NO_ERROR) {
-        ALOGE("Test: generate cipher ae key failed!");
+        ALOGE("Test: generate cipher aead key failed!");
         return -1;
     } else {
-        ALOGE("Test: cipher ae key generated successfully with ID: 0x%x!", keyID);
+        ALOGE("Test: cipher aead key generated successfully with ID: 0x%x!", keyID);
     }
 
     /* open key cipher */
@@ -380,19 +380,19 @@ int test_cipher_ae_operation(EleOperation *ops, uint32_t keyStoreHandler, uint32
     }
 
     /* encryption */
-    memset(&sym_key_ae_op_addr, 0, sizeof(sym_key_ae_op_addr));
-    sym_key_ae_op_addr.key_id = keyID;
-    sym_key_ae_op_addr.iv_addr = iv_data_aead;
-    sym_key_ae_op_addr.iv_size = sizeof(iv_data_aead);
-    sym_key_ae_op_addr.flags = CIPHER_ONE_GO_FLAGS_ENCRYPT;
-    sym_key_ae_op_addr.algo = PERMITTED_ALGO_CCM;
-    sym_key_ae_op_addr.aad_addr = aad_data_aead;
-    sym_key_ae_op_addr.aad_size = sizeof(aad_data_aead);
-    sym_key_ae_op_addr.input_addr = hash_data;
-    sym_key_ae_op_addr.input_size = sizeof(hash_data);
-    sym_key_ae_op_addr.output_addr = ciphered_aead_data;
-    sym_key_ae_op_addr.output_size = sizeof(ciphered_aead_data);
-    error = ops->eleCipherAEOperation(cipherHandle, &sym_key_ae_op_addr);
+    memset(&sym_key_aead_op_addr, 0, sizeof(sym_key_aead_op_addr));
+    sym_key_aead_op_addr.key_id = keyID;
+    sym_key_aead_op_addr.iv_addr = iv_data_aead;
+    sym_key_aead_op_addr.iv_size = sizeof(iv_data_aead);
+    sym_key_aead_op_addr.flags = CIPHER_ONE_GO_FLAGS_ENCRYPT;
+    sym_key_aead_op_addr.algo = PERMITTED_ALGO_CCM;
+    sym_key_aead_op_addr.aad_addr = aad_data_aead;
+    sym_key_aead_op_addr.aad_size = sizeof(aad_data_aead);
+    sym_key_aead_op_addr.input_addr = hash_data;
+    sym_key_aead_op_addr.input_size = sizeof(hash_data);
+    sym_key_aead_op_addr.output_addr = ciphered_aead_data;
+    sym_key_aead_op_addr.output_size = sizeof(ciphered_aead_data);
+    error = ops->eleCipherAeadOperation(cipherHandle, &sym_key_aead_op_addr);
     if (error != ELE_NO_ERROR) {
         ALOGE("Test: cipher aead encrypt failed!");
         ret = -1;
@@ -405,19 +405,19 @@ int test_cipher_ae_operation(EleOperation *ops, uint32_t keyStoreHandler, uint32
     }
 
     /* dencryption */
-    memset(&sym_key_ae_op_addr, 0, sizeof(sym_key_ae_op_addr));
-    sym_key_ae_op_addr.key_id = keyID;
-    sym_key_ae_op_addr.iv_addr = iv_data_aead;
-    sym_key_ae_op_addr.iv_size = sizeof(iv_data_aead);
-    sym_key_ae_op_addr.flags = CIPHER_ONE_GO_FLAGS_DECRYPT;
-    sym_key_ae_op_addr.algo = PERMITTED_ALGO_CCM;
-    sym_key_ae_op_addr.aad_addr = aad_data_aead;
-    sym_key_ae_op_addr.aad_size = sizeof(aad_data_aead);
-    sym_key_ae_op_addr.input_addr = ciphered_aead_data;
-    sym_key_ae_op_addr.input_size = sizeof(ciphered_aead_data);
-    sym_key_ae_op_addr.output_addr = deciphered_aead_data;
-    sym_key_ae_op_addr.output_size = sizeof(deciphered_aead_data);
-    error = ops->eleCipherAEOperation(cipherHandle, &sym_key_ae_op_addr);
+    memset(&sym_key_aead_op_addr, 0, sizeof(sym_key_aead_op_addr));
+    sym_key_aead_op_addr.key_id = keyID;
+    sym_key_aead_op_addr.iv_addr = iv_data_aead;
+    sym_key_aead_op_addr.iv_size = sizeof(iv_data_aead);
+    sym_key_aead_op_addr.flags = CIPHER_ONE_GO_FLAGS_DECRYPT;
+    sym_key_aead_op_addr.algo = PERMITTED_ALGO_CCM;
+    sym_key_aead_op_addr.aad_addr = aad_data_aead;
+    sym_key_aead_op_addr.aad_size = sizeof(aad_data_aead);
+    sym_key_aead_op_addr.input_addr = ciphered_aead_data;
+    sym_key_aead_op_addr.input_size = sizeof(ciphered_aead_data);
+    sym_key_aead_op_addr.output_addr = deciphered_aead_data;
+    sym_key_aead_op_addr.output_size = sizeof(deciphered_aead_data);
+    error = ops->eleCipherAeadOperation(cipherHandle, &sym_key_aead_op_addr);
     if (error != ELE_NO_ERROR) {
         ALOGE("Test: cipher aead decrypt failed!");
         ret = -1;
@@ -629,7 +629,7 @@ int main() {
         goto exit;
 
     /* symmetric cipher authenticated encryption operation test */
-    ret = test_cipher_ae_operation(&ops, keyStoreHandler, keyMgtHandle);
+    ret = test_cipher_aead_operation(&ops, keyStoreHandler, keyMgtHandle);
     if (ret)
         goto exit;
 
