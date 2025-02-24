@@ -53,7 +53,7 @@ public:
                                             const std::vector<uint8_t>& in_input,
                                             std::vector<uint8_t>* out_output,
                                             int32_t* _aidl_return) override;
-    ::ndk::ScopedAStatus eleCipherAEOperation(int32_t in_keyId, const std::vector<uint8_t>& in_iv,
+    ::ndk::ScopedAStatus eleCipherAeadOperation(int32_t in_keyId, const std::vector<uint8_t>& in_iv,
                                               int32_t in_flags, int32_t in_algo,
                                               const std::vector<uint8_t>& in_aad,
                                               const std::vector<uint8_t>& in_input,

@@ -45,7 +45,7 @@ public:
     ErrorType eleOpenCipher(uint32_t keyStoreHandler, uint32_t *cipherHandle);
     ErrorType eleCloseCipher(uint32_t cipherHandle);
     ErrorType eleCipherOperation(uint32_t cipherHandle, cipher_operation_attr *cipherAttr);
-    ErrorType eleCipherAEOperation(uint32_t cipherHandle, cipher_ae_operation_attr *cipherAEAttr);
+    ErrorType eleCipherAeadOperation(uint32_t cipherHandle, cipher_aead_operation_attr *cipherAeadAttr);
     ErrorType eleSignGenerateOpen(uint32_t keyStoreHandler, uint32_t *signGenHandle);
     ErrorType eleSignGenerateClose(uint32_t signGenHandle);
     ErrorType eleSignGenerate(uint32_t signGenHandle, gen_sign_attr *genSignAttr);

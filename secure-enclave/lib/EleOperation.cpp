@@ -907,95 +907,95 @@ ErrorType EleOperation::eleCipherOperation(uint32_t cipherHandle,
     return ELE_NO_ERROR;
 }
 
-ErrorType EleOperation::eleCipherAEOperation(uint32_t cipherHandle,
-                                             cipher_ae_operation_attr *cipherAEAttr) {
-    struct cipher_ae_msg_cmd *cipher_ae_op_args;
-    struct cipher_ae_msg_rsp *cipher_ae_op_resp;
+ErrorType EleOperation::eleCipherAeadOperation(uint32_t cipherHandle,
+                                             cipher_aead_operation_attr *cipherAeadAttr) {
+    struct cipher_aead_msg_cmd *cipher_aead_op_args;
+    struct cipher_aead_msg_rsp *cipher_aead_op_resp;
     struct mu_msg msg;
     ErrorType error;
     uint32_t req_len, resp_len;
 
     /* check the input parameters */
-    if (!cipherHandle || !cipherAEAttr || !(cipherAEAttr->key_id)) {
-        ALOGE("Invalid cipher ae handler or attributes!");
+    if (!cipherHandle || !cipherAeadAttr || !(cipherAeadAttr->key_id)) {
+        ALOGE("Invalid cipher aead handler or attributes!");
         return ELE_INVALID_MESSAGE;
     }
 
-    if (cipherAEAttr->flags & CIPHER_ONE_GO_FLAGS_FULL_IV) {
-        if (cipherAEAttr->iv_size != 0) {
+    if (cipherAeadAttr->flags & CIPHER_ONE_GO_FLAGS_FULL_IV) {
+        if (cipherAeadAttr->iv_size != 0) {
             ALOGE("The iv size should be 0 when CIPHER_ONE_GO_FLAGS_FULL_IV is set!");
             return ELE_INVALID_MESSAGE;
         }
-    } else if (cipherAEAttr->flags & CIPHER_ONE_GO_FLAGS_COUNTER_IV) {
-        if (cipherAEAttr->iv_size != 4) {
+    } else if (cipherAeadAttr->flags & CIPHER_ONE_GO_FLAGS_COUNTER_IV) {
+        if (cipherAeadAttr->iv_size != 4) {
             ALOGE("The iv size should be 4 when CIPHER_ONE_GO_FLAGS_COUNTER_IV is set!");
             return ELE_INVALID_MESSAGE;
         }
     } else {
-        if (cipherAEAttr->iv_size != 12) {
+        if (cipherAeadAttr->iv_size != 12) {
             ALOGE("The iv size should be 12 when supplied by user!");
             return ELE_INVALID_MESSAGE;
         }
     }
 
-    if (!cipherAEAttr->input_addr || !cipherAEAttr->input_size || !cipherAEAttr->output_addr ||
-        !cipherAEAttr->output_size || !cipherAEAttr->aad_addr || !cipherAEAttr->aad_size) {
+    if (!cipherAeadAttr->input_addr || !cipherAeadAttr->input_size || !cipherAeadAttr->output_addr ||
+        !cipherAeadAttr->output_size || !cipherAeadAttr->aad_addr || !cipherAeadAttr->aad_size) {
         ALOGE("Invalid cipher input/output parameters!");
         return ELE_INVALID_MESSAGE;
     }
 
-    if ((cipherAEAttr->flags & CIPHER_ONE_GO_FLAGS_ENCRYPT) &&
-        (cipherAEAttr->output_size < cipherAEAttr->input_size + AEAD_TAG_LENGTH)) {
+    if ((cipherAeadAttr->flags & CIPHER_ONE_GO_FLAGS_ENCRYPT) &&
+        (cipherAeadAttr->output_size < cipherAeadAttr->input_size + AEAD_TAG_LENGTH)) {
         ALOGE("ELE AEAD Output buffer is too small!");
         return ELE_INVALID_MESSAGE;
     }
 
-    if ((cipherAEAttr->flags & CIPHER_ONE_GO_FLAGS_DECRYPT) &&
-        (cipherAEAttr->output_size < cipherAEAttr->input_size - AEAD_TAG_LENGTH)) {
+    if ((cipherAeadAttr->flags & CIPHER_ONE_GO_FLAGS_DECRYPT) &&
+        (cipherAeadAttr->output_size < cipherAeadAttr->input_size - AEAD_TAG_LENGTH)) {
         ALOGE("ELE AEAD Output buffer is too small!");
         return ELE_INVALID_MESSAGE;
     }
 
     /* construct the message command */
     memset(&msg, 0, sizeof(msg));
-    req_len = SIZE_MSG(struct cipher_ae_msg_cmd);
-    cipher_ae_op_args = (struct cipher_ae_msg_cmd *)(msg.data.u8);
-    cipher_ae_op_args->cipher_hdl = cipherHandle;
-    cipher_ae_op_args->key_id = cipherAEAttr->key_id;
-    if (cipherAEAttr->iv_size != 0) {
-        cipher_ae_op_args->iv_addr = retrivePhyAddress(cipherAEAttr->iv_addr, cipherAEAttr->iv_size,
+    req_len = SIZE_MSG(struct cipher_aead_msg_cmd);
+    cipher_aead_op_args = (struct cipher_aead_msg_cmd *)(msg.data.u8);
+    cipher_aead_op_args->cipher_hdl = cipherHandle;
+    cipher_aead_op_args->key_id = cipherAeadAttr->key_id;
+    if (cipherAeadAttr->iv_size != 0) {
+        cipher_aead_op_args->iv_addr = retrivePhyAddress(cipherAeadAttr->iv_addr, cipherAeadAttr->iv_size,
                                                        ELE_MU_IO_FLAGS_IS_INPUT);
-        cipher_ae_op_args->iv_size = cipherAEAttr->iv_size;
+        cipher_aead_op_args->iv_size = cipherAeadAttr->iv_size;
     }
-    cipher_ae_op_args->flags = cipherAEAttr->flags;
-    cipher_ae_op_args->algo = cipherAEAttr->algo;
-    cipher_ae_op_args->aad_addr = retrivePhyAddress(cipherAEAttr->aad_addr, cipherAEAttr->aad_size,
+    cipher_aead_op_args->flags = cipherAeadAttr->flags;
+    cipher_aead_op_args->algo = cipherAeadAttr->algo;
+    cipher_aead_op_args->aad_addr = retrivePhyAddress(cipherAeadAttr->aad_addr, cipherAeadAttr->aad_size,
                                                     ELE_MU_IO_FLAGS_IS_INPUT);
-    cipher_ae_op_args->aad_size = cipherAEAttr->aad_size;
-    cipher_ae_op_args->input_addr =
-            retrivePhyAddress(cipherAEAttr->input_addr, cipherAEAttr->input_size,
+    cipher_aead_op_args->aad_size = cipherAeadAttr->aad_size;
+    cipher_aead_op_args->input_addr =
+            retrivePhyAddress(cipherAeadAttr->input_addr, cipherAeadAttr->input_size,
                               ELE_MU_IO_FLAGS_IS_INPUT);
-    cipher_ae_op_args->input_size = cipherAEAttr->input_size;
-    cipher_ae_op_args->output_addr =
-            retrivePhyAddress(cipherAEAttr->output_addr, cipherAEAttr->output_size,
+    cipher_aead_op_args->input_size = cipherAeadAttr->input_size;
+    cipher_aead_op_args->output_addr =
+            retrivePhyAddress(cipherAeadAttr->output_addr, cipherAeadAttr->output_size,
                               ELE_MU_IO_FLAGS_IS_OUTPUT);
-    cipher_ae_op_args->output_size = cipherAEAttr->output_size;
+    cipher_aead_op_args->output_size = cipherAeadAttr->output_size;
 
-    buildMsgHeader(&msg, KEY_CIPHER_AE_OPERATION_REQ, req_len, mu_info.cmd_tag);
+    buildMsgHeader(&msg, KEY_CIPHER_AEAD_OPERATION_REQ, req_len, mu_info.cmd_tag);
 
     /* add the CRC */
     addCRC(&msg);
 
-    resp_len = SIZE_MSG(struct cipher_ae_msg_rsp);
+    resp_len = SIZE_MSG(struct cipher_aead_msg_rsp);
     error = eleSendAndReciveMsg(&msg, req_len, &resp_len);
     if (error != ELE_NO_ERROR) {
-        ALOGE("Failed to do cipher ae operation!");
+        ALOGE("Failed to do cipher aead operation!");
         return error;
     }
 
-    cipher_ae_op_resp = (struct cipher_ae_msg_rsp *)(msg.data.u8);
+    cipher_aead_op_resp = (struct cipher_aead_msg_rsp *)(msg.data.u8);
     /* return the actual output size */
-    cipherAEAttr->output_size = cipher_ae_op_resp->output_size;
+    cipherAeadAttr->output_size = cipher_aead_op_resp->output_size;
 
     return ELE_NO_ERROR;
 }
