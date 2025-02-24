@@ -86,7 +86,6 @@ typedef struct tag_request {
     HwlPipelineRequest hwlReq;
     std::vector<FenceFdInfo> outBufferFences;
     std::vector<uint32_t> camera_ids;
-    std::unique_ptr<libcamera::Request> request;
 
     // In SubmitRequests(), FrameRequest is a vector, although till now the vector size is 1.
     // In imgProc::HandleImage(), FrameRequest is proced one by one.
@@ -231,13 +230,17 @@ private:
 
     Stream *GetStreamById(int32_t stream_id, PipelineInfo *pInfo);
     int32_t GetStreamIdFromLibcameraStream(const libcamera::Stream *libCameraStream);
-    uint64_t GetTimestamp(libcamera::Request *request);
+    uint64_t GetTimestampLocked(libcamera::Request *request);
 
     void CleanFrameBuffersLocked();
     void WaitRequestsFinishAndCleanResource();
     status_t ConfigLibcameraLocked(uint32_t bufferNum, uint32_t format, uint32_t width,
                                    uint32_t height);
     status_t PickAndConfigLibcamera(std::vector<HwlPipelineRequest> &requests);
+
+    void ReturnFrameBufferLocked();
+    status_t queueRequestToLibcameraLocked(HalCameraMetadata *cameraMeta);
+    void ISPProcess(HalCameraMetadata *cameraMeta, libcamera::Request *request);
 
 public:
     CameraSensorMetadata *getSensorData() { return &mSensorData; }
@@ -265,6 +268,7 @@ private:
 
     std::vector<uint32_t> camera_ids;
 
+    // ISPProcess
     autoState m3aState;
 
     sp<JpegBuilder> mJpegBuilder;
@@ -322,6 +326,7 @@ private:
     libcamera::Stream *mLibCameraStream = NULL;
     std::list<std::unique_ptr<libcamera::FrameBuffer>> mFrameBuffersFree;
     std::list<std::unique_ptr<libcamera::FrameBuffer>> mFrameBuffersBusy;
+    std::list<std::unique_ptr<libcamera::Request>> requestList;
     std::map<libcamera::FrameBuffer *, ImxImageBuffer> mFrameBufferHandleMap;
     android_pixel_format_t m_libcamera_stream_format = HAL_PIXEL_FORMAT_YCBCR_422_I;
     uint32_t m_libcamera_stream_width = 0;
@@ -329,6 +334,11 @@ private:
 
     uint8_t mCaptureIntent = -1;
     bool m_bConfigLibcameraByIntent = false;
+
+    uint32_t mOmitFrames;
+    uint32_t mOmitFrmCount;
+
+    char mSocType[128];
 
 public:
     int32_t m_raw_v4l2_format = -1;
