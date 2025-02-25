@@ -177,6 +177,7 @@ static const struct planar_layout *layout_from_format(uint32_t format) {
             return &packed_4bpp_layout;
 
         case DRM_FORMAT_ABGR16161616F:
+        case DRM_FORMAT_AXBXGXRX106106106106:
             return &packed_8bpp_layout;
 
         case DRM_FORMAT_NV16:
