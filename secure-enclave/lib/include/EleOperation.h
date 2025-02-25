@@ -33,13 +33,16 @@ public:
     ErrorType eleOpenDeviceNode(void);
     ErrorType eleOpenSession();
     ErrorType eleCloseSession();
+    ErrorType eleGetDeviceInfo(device_info *info);
     ErrorType eleOpenKeyStore(uint32_t keyStoreId, uint32_t nonce, uint8_t op,
                               uint32_t *keyStoreHandler);
     ErrorType eleCloseKeyStore(uint32_t keyStoreHandler);
+    ErrorType elePubkeyExport(uint32_t keyStoreHandler, pubkey_export *pubkeyExportArgs);
     ErrorType eleOpenKeyManagement(uint32_t keyStoreHandler, uint32_t *keyMgtHandle);
     ErrorType eleCloseKeyManagement(uint32_t keyMgtHandle);
     ErrorType eleGenerateKey(uint32_t keyMgtHandle, uint32_t *keyId,
                              gen_key_attribute *keyAttribute);
+    ErrorType eleImportKey(uint32_t keyMgtHandle, import_key_attr *importKeyAttr, uint32_t *keyId);
     ErrorType eleDeleteKey(uint32_t keyMgtHandle, uint32_t keyId, uint8_t flags);
     ErrorType eleGetKeyAttr(uint32_t keyMgtHandle, uint32_t keyId, key_attribute *keyAttribute);
     ErrorType eleOpenCipher(uint32_t keyStoreHandler, uint32_t *cipherHandle);
@@ -55,6 +58,12 @@ public:
     ErrorType eleMacOpen(uint32_t keyStoreHandler, uint32_t *macHandle);
     ErrorType eleMacClose(uint32_t macHandle);
     ErrorType eleMacOperation(uint32_t macHandle, mac_operation_attr *macOperationAttr);
+    ErrorType eleDataStorageOpen(uint32_t keyStoreHandler, uint32_t *dataStorageHandle);
+    ErrorType eleDataStorageClose(uint32_t dataStorageHandle);
+    ErrorType eleDataStorage(uint32_t dataStorageHandle, data_storage_attr *dataStorageAttr);
+    ErrorType eleDataEncStorage(uint32_t dataStorageHandle,
+                                data_enc_storage_attr *dataEncStorageAttr, uint32_t *storedSize);
+    ErrorType eleDataStorageDelete(uint32_t dataStorageHandle, uint32_t dataId);
 
     /* NVM operations*/
     ErrorType eleOpenStorage(uint32_t *nvmStorageHandle);
@@ -87,6 +96,9 @@ private:
     ErrorType eleHandleMasterExportReq(struct mu_msg *cmd, uint32_t cmdLen, struct mu_msg *resp,
                                        uint32_t *respLen, uint32_t rspMsgInfo,
                                        struct nvm_context *nvmCtx);
+    ErrorType eleHandleChunkDelete(struct mu_msg *cmd, uint32_t cmdLen, struct mu_msg *resp,
+                                   uint32_t *respLen, uint32_t rspMsgInfo,
+                                   struct nvm_context *nvmCtx);
     ErrorType receiveNVMRequest(struct mu_msg *cmd, uint32_t *cmdLen, uint32_t *cmdID);
 
     int fd = -1;
