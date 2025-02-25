@@ -401,6 +401,47 @@ ErrorType EleOperation::eleCloseSession() {
     return ELE_NO_ERROR;
 }
 
+ErrorType EleOperation::eleGetDeviceInfo(device_info *info) {
+    struct get_info_msg_cmd *get_info_args;
+    struct get_info_msg_rsp *get_info_resp;
+    struct mu_msg msg;
+    ErrorType error;
+    uint32_t req_len, resp_len;
+
+    /* check the session handle before opening keystore */
+    if (session_handle == 0) {
+        ALOGE("ELE session is not yet opened!");
+        return ELE_GENERAL_ERROR;
+    }
+
+    /* construct the message command */
+    memset(&msg, 0, sizeof(msg));
+    req_len = SIZE_MSG(struct get_info_msg_cmd);
+    get_info_args = (struct get_info_msg_cmd *)(msg.data.u8);
+    get_info_args->session_handle = session_handle;
+
+    buildMsgHeader(&msg, SESSION_GET_INFO, req_len, mu_info.cmd_tag);
+
+    resp_len = SIZE_MSG(struct get_info_msg_rsp);
+    error = eleSendAndReciveMsg(&msg, req_len, &resp_len);
+    if (error != ELE_NO_ERROR) {
+        ALOGE("Failed to retrieve device info from ELE.");
+        return error;
+    }
+
+    get_info_resp = (struct get_info_msg_rsp *)(msg.data.u8);
+    info->user_sab_id = get_info_resp->user_sab_id;
+    info->uid_w0 = get_info_resp->uid_w0;
+    info->uid_w1 = get_info_resp->uid_w1;
+    info->uid_w2 = get_info_resp->uid_w2;
+    info->uid_w3 = get_info_resp->uid_w3;
+    info->monotonic_counter = get_info_resp->monotonic_counter;
+    info->lifecycle = get_info_resp->lifecycle;
+    info->fips_mode = get_info_resp->fips_mode;
+
+    return ELE_NO_ERROR;
+}
+
 ErrorType EleOperation::eleOpenKeyStore(uint32_t keyStoreId, uint32_t nonce, uint8_t op,
                                         uint32_t *keyStoreHandler) {
     struct key_store_open_msg_cmd *open_keystore_args;
@@ -475,6 +516,56 @@ ErrorType EleOperation::eleCloseKeyStore(uint32_t keyStoreHandler) {
     }
 
     return ELE_NO_ERROR;
+}
+
+ErrorType EleOperation::elePubkeyExport(uint32_t keyStoreHandler, pubkey_export *pubkeyExportArgs) {
+    struct pubkey_recover_msg_cmd *pubkey_export_args;
+    struct pubkey_recover_msg_rsp *pubkey_export_resp;
+    struct mu_msg msg;
+    ErrorType error;
+    uint32_t req_len, resp_len;
+
+    /* check the keystore handle */
+    if (keyStoreHandler == 0) {
+        ALOGE("Invalid keystore handle");
+        return ELE_GENERAL_ERROR;
+    }
+
+    /* Check other input parameters */
+    if (pubkeyExportArgs->key_id == 0 || pubkeyExportArgs->out_key == NULL ||
+        pubkeyExportArgs->out_key_size == 0) {
+        ALOGE("Invalid input parameters!");
+        return ELE_INVALID_ARGS;
+    }
+
+    /* construct the message command */
+    memset(&msg, 0, sizeof(msg));
+    req_len = SIZE_MSG(struct pubkey_recover_msg_cmd);
+    pubkey_export_args = (struct pubkey_recover_msg_cmd *)(msg.data.u8);
+    pubkey_export_args->key_store_handle = keyStoreHandler;
+    pubkey_export_args->key_id = pubkeyExportArgs->key_id;
+    pubkey_export_args->out_key_lsb =
+            retrivePhyAddress(pubkeyExportArgs->out_key, pubkeyExportArgs->out_key_size,
+                              ELE_MU_IO_FLAGS_IS_OUTPUT);
+    pubkey_export_args->out_key_size = pubkeyExportArgs->out_key_size;
+
+    buildMsgHeader(&msg, KEY_STORE_PUBKEY_EXPORT, req_len, mu_info.cmd_tag);
+
+    /* add the CRC */
+    addCRC(&msg);
+
+    resp_len = SIZE_MSG(struct pubkey_recover_msg_rsp);
+    error = eleSendAndReciveMsg(&msg, req_len, &resp_len);
+    pubkey_export_resp = (struct pubkey_recover_msg_rsp *)(msg.data.u8);
+    if (error != ELE_NO_ERROR) {
+        ALOGE("Failed to export public key!");
+        if (error == ELE_COMMAND_OUTPUT_TOO_SMALL) {
+            ALOGE("Public key buffer is too small!");
+        }
+    }
+
+    pubkeyExportArgs->out_key_size = pubkey_export_resp->out_key_size;
+    return error;
 }
 
 ErrorType EleOperation::eleOpenStorage(uint32_t *nvmStorageHandle) {
@@ -693,6 +784,62 @@ ErrorType EleOperation::eleGenerateKey(uint32_t keyMgtHandle, uint32_t *keyId,
 
     *keyId = gen_key_resp->key_id;
     ALOGI("ELE new key generated with ID: 0x%x", *keyId);
+
+    return ELE_NO_ERROR;
+}
+
+ErrorType EleOperation::eleImportKey(uint32_t keyMgtHandle, import_key_attr *importKeyAttr,
+                                     uint32_t *keyId) {
+    struct import_key_msg_cmd *import_key_args;
+    struct import_key_msg_rsp *import_key_resp;
+    struct mu_msg msg;
+    ErrorType error;
+    uint32_t req_len, resp_len;
+
+    if (!keyId || !importKeyAttr || !importKeyAttr->input_addr || !importKeyAttr->input_size) {
+        ALOGE("Invalid input parameters!");
+        return ELE_INVALID_MESSAGE;
+    }
+
+    /* check the key management handle before generating key */
+    if (keyMgtHandle == 0) {
+        ALOGE("Invalid key management handler!");
+        return ELE_GENERAL_ERROR;
+    }
+
+    /* construct the message command */
+    memset(&msg, 0, sizeof(msg));
+    req_len = SIZE_MSG(struct import_key_msg_cmd);
+    import_key_args = (struct import_key_msg_cmd *)(msg.data.u8);
+    import_key_args->key_mgt_handle = keyMgtHandle;
+    import_key_args->flags = importKeyAttr->flags;
+    import_key_args->input_addr =
+            retrivePhyAddress(importKeyAttr->input_addr, importKeyAttr->input_size,
+                              ELE_MU_IO_FLAGS_IS_INPUT);
+    import_key_args->input_size = importKeyAttr->input_size;
+    if (importKeyAttr->flags & IMPORT_SET_KEY_GROUP)
+        import_key_args->key_group = importKeyAttr->key_group;
+
+    buildMsgHeader(&msg, KEY_IMPORT_KEY_REQ, req_len, mu_info.cmd_tag);
+
+    /* add the CRC */
+    addCRC(&msg);
+
+    resp_len = SIZE_MSG(struct import_key_msg_rsp);
+    error = eleSendAndReciveMsg(&msg, req_len, &resp_len);
+    if (error != ELE_NO_ERROR) {
+        ALOGE("Failed to import key!");
+        return error;
+    }
+
+    import_key_resp = (struct import_key_msg_rsp *)(msg.data.u8);
+    if (import_key_resp->key_id == 0) {
+        ALOGE("Invalid key id for imported key!");
+        return ELE_GENERAL_ERROR;
+    }
+
+    *keyId = import_key_resp->key_id;
+    ALOGI("ELE key imported as ID: 0x%x", *keyId);
 
     return ELE_NO_ERROR;
 }
@@ -1401,6 +1548,238 @@ ErrorType EleOperation::eleMacOperation(uint32_t macHandle, mac_operation_attr *
     return ELE_NO_ERROR;
 }
 
+ErrorType EleOperation::eleDataStorageOpen(uint32_t keyStoreHandler, uint32_t *dataStorageHandle) {
+    struct data_storage_open_msg_cmd *data_storage_open_args;
+    struct data_storage_open_msg_rsp *data_storage_open_resp;
+    struct mu_msg msg;
+    ErrorType error;
+    uint32_t req_len, resp_len;
+
+    /* check the key store handle before opening data storage session */
+    if (keyStoreHandler == 0 || !dataStorageHandle) {
+        ALOGE("Invalid keystore handle or null data storage handle pointer!");
+        return ELE_GENERAL_ERROR;
+    }
+
+    /* construct the message command */
+    memset(&msg, 0, sizeof(msg));
+    req_len = SIZE_MSG(struct data_storage_open_msg_cmd);
+    data_storage_open_args = (struct data_storage_open_msg_cmd *)(msg.data.u8);
+    /* The msbi and msbo are set to 0 by default */
+    data_storage_open_args->key_store_handle = keyStoreHandler;
+
+    buildMsgHeader(&msg, DATA_STORAGE_OPEN_REQ, req_len, mu_info.cmd_tag);
+
+    /* add the CRC */
+    addCRC(&msg);
+
+    resp_len = SIZE_MSG(struct data_storage_open_msg_rsp);
+    error = eleSendAndReciveMsg(&msg, req_len, &resp_len);
+    if (error != ELE_NO_ERROR) {
+        ALOGE("Failed to open data storage session!");
+        return error;
+    }
+
+    data_storage_open_resp = (struct data_storage_open_msg_rsp *)(msg.data.u8);
+    if (data_storage_open_resp->data_storage_hdl == 0) {
+        ALOGE("Invalid data storage session handle: 0");
+        return ELE_INVALID_MESSAGE;
+    }
+    *dataStorageHandle = data_storage_open_resp->data_storage_hdl;
+    ALOGI("ELE data storage session opened, handle: 0x%x", *dataStorageHandle);
+
+    return ELE_NO_ERROR;
+}
+
+ErrorType EleOperation::eleDataStorageClose(uint32_t dataStorageHandle) {
+    struct data_storage_close_msg_cmd *data_storage_close_args;
+    struct mu_msg msg;
+    ErrorType error;
+    uint32_t req_len, resp_len;
+
+    /* check the data storage handle before closing */
+    if (dataStorageHandle == 0) {
+        ALOGE("Invalid data storage session handler!");
+        return ELE_GENERAL_ERROR;
+    }
+
+    /* construct the message command */
+    memset(&msg, 0, sizeof(msg));
+    req_len = SIZE_MSG(struct data_storage_close_msg_cmd);
+    data_storage_close_args = (struct data_storage_close_msg_cmd *)(msg.data.u8);
+    data_storage_close_args->data_storage_hdl = dataStorageHandle;
+
+    buildMsgHeader(&msg, DATA_STORAGE_CLOSE_REQ, req_len, mu_info.cmd_tag);
+
+    resp_len = SIZE_MSG(struct data_storage_close_msg_rsp);
+    error = eleSendAndReciveMsg(&msg, req_len, &resp_len);
+    if (error != ELE_NO_ERROR) {
+        ALOGE("Failed to close ELE data storage session(0x%x)!", dataStorageHandle);
+        return error;
+    }
+
+    return ELE_NO_ERROR;
+}
+
+ErrorType EleOperation::eleDataStorage(uint32_t dataStorageHandle,
+                                       data_storage_attr *dataStorageAttr) {
+    struct data_storage_msg_cmd *data_storage_args;
+    struct data_storage_msg_rsp *data_storage_resp;
+    struct mu_msg msg;
+    ErrorType error;
+    uint32_t req_len, resp_len;
+
+    /* check the input parameters */
+    if (!dataStorageHandle || !dataStorageAttr) {
+        ALOGE("Invalid data storage handler or attributes!");
+        return ELE_INVALID_MESSAGE;
+    }
+    /* "data_id" is not checked because it can be "0" in EL2GO case */
+    if (!dataStorageAttr->data_lsb_addr || !dataStorageAttr->data_size) {
+        ALOGE("Invalid data storage input parameters!");
+        return ELE_INVALID_MESSAGE;
+    }
+
+    /* construct the message command */
+    memset(&msg, 0, sizeof(msg));
+    req_len = SIZE_MSG(struct data_storage_msg_cmd);
+    data_storage_args = (struct data_storage_msg_cmd *)(msg.data.u8);
+    data_storage_args->data_storage_hdl = dataStorageHandle;
+    data_storage_args->flags = dataStorageAttr->flags;
+    data_storage_args->data_id = dataStorageAttr->data_id;
+    if (dataStorageAttr->flags & ELE_DATA_STORAGE_STORE) {
+        data_storage_args->data_lsb_addr =
+                retrivePhyAddress(dataStorageAttr->data_lsb_addr, dataStorageAttr->data_size,
+                                  ELE_MU_IO_FLAGS_IS_INPUT);
+    } else {
+        data_storage_args->data_lsb_addr =
+                retrivePhyAddress(dataStorageAttr->data_lsb_addr, dataStorageAttr->data_size,
+                                  ELE_MU_IO_FLAGS_IS_OUTPUT);
+    }
+    data_storage_args->data_size = dataStorageAttr->data_size;
+
+    buildMsgHeader(&msg, DATA_STORAGE_REQ, req_len, mu_info.cmd_tag);
+
+    /* add the CRC */
+    addCRC(&msg);
+
+    resp_len = SIZE_MSG(struct data_storage_msg_rsp);
+    data_storage_resp = (struct data_storage_msg_rsp *)(msg.data.u8);
+    error = eleSendAndReciveMsg(&msg, req_len, &resp_len);
+    if (error != ELE_NO_ERROR) {
+        ALOGE("Failed to do data storage operation!");
+        if (error == ELE_COMMAND_OUTPUT_TOO_SMALL) {
+            ALOGE("Data size is not expected: %d!", dataStorageAttr->data_size);
+            dataStorageAttr->data_size = data_storage_resp->data_size;
+        }
+        return error;
+    }
+
+    dataStorageAttr->data_size = data_storage_resp->data_size;
+    ALOGI("data storage operation succeed. data_id: 0x%x", dataStorageAttr->data_id);
+
+    return ELE_NO_ERROR;
+}
+
+ErrorType EleOperation::eleDataEncStorage(uint32_t dataStorageHandle,
+                                          data_enc_storage_attr *dataEncStorageAttr,
+                                          uint32_t *storedSize) {
+    struct data_enc_storage_msg_cmd *data_enc_storage_args;
+    struct data_enc_storage_msg_rsp *data_enc_storage_resp;
+    struct mu_msg msg;
+    ErrorType error;
+    uint32_t req_len, resp_len;
+
+    /* check the input parameters */
+    if (!dataStorageHandle || !dataEncStorageAttr) {
+        ALOGE("Invalid encrypted data storage handler or attributes!");
+        return ELE_INVALID_MESSAGE;
+    }
+    if (!dataEncStorageAttr->data_id || !dataEncStorageAttr->data_addr ||
+        !dataEncStorageAttr->data_size || !storedSize) {
+        ALOGE("Invalid encrypted data storage input parameters!");
+        return ELE_INVALID_MESSAGE;
+    }
+
+    /* construct the message command */
+    memset(&msg, 0, sizeof(msg));
+    req_len = SIZE_MSG(struct data_enc_storage_msg_cmd);
+    data_enc_storage_args = (struct data_enc_storage_msg_cmd *)(msg.data.u8);
+    data_enc_storage_args->data_storage_hdl = dataStorageHandle;
+    data_enc_storage_args->data_id = dataEncStorageAttr->data_id;
+    data_enc_storage_args->data_addr =
+            retrivePhyAddress(dataEncStorageAttr->data_addr, dataEncStorageAttr->data_size,
+                              ELE_MU_IO_FLAGS_IS_INPUT);
+    data_enc_storage_args->data_size = dataEncStorageAttr->data_size;
+    data_enc_storage_args->enc_algo = dataEncStorageAttr->enc_algo;
+    data_enc_storage_args->enc_key_id = dataEncStorageAttr->enc_key_id;
+    data_enc_storage_args->sign_algo = dataEncStorageAttr->sign_algo;
+    data_enc_storage_args->sign_key_id = dataEncStorageAttr->sign_key_id;
+    if (dataEncStorageAttr->iv_addr != NULL) {
+        data_enc_storage_args->iv_addr =
+                retrivePhyAddress(dataEncStorageAttr->iv_addr, dataEncStorageAttr->iv_size,
+                                  ELE_MU_IO_FLAGS_IS_INPUT);
+        data_enc_storage_args->iv_size = dataEncStorageAttr->iv_size;
+    } else {
+        data_enc_storage_args->iv_addr = 0;
+        data_enc_storage_args->iv_size = 0;
+    }
+    data_enc_storage_args->flags = dataEncStorageAttr->flags;
+    data_enc_storage_args->lifecycle = dataEncStorageAttr->lifecycle;
+
+    buildMsgHeader(&msg, DATA_ENC_STORAGE_REQ, req_len, mu_info.cmd_tag);
+
+    /* add the CRC */
+    addCRC(&msg);
+
+    resp_len = SIZE_MSG(struct data_enc_storage_msg_rsp);
+    data_enc_storage_resp = (struct data_enc_storage_msg_rsp *)(msg.data.u8);
+    error = eleSendAndReciveMsg(&msg, req_len, &resp_len);
+    if (error != ELE_NO_ERROR) {
+        ALOGE("Failed to do data enc storage operation! Error: 0x%x", error);
+        *storedSize = 0;
+        return error;
+    }
+
+    /* size of signed TLV stored, in bytes */
+    *storedSize = data_enc_storage_resp->data_size;
+    ALOGI("encrypted data storage operation succeed. data_id: 0x%x, stored size: %d",
+          dataEncStorageAttr->data_id, *storedSize);
+
+    return ELE_NO_ERROR;
+}
+
+ErrorType EleOperation::eleDataStorageDelete(uint32_t dataStorageHandle, uint32_t dataId) {
+    struct data_storage_delete_msg_cmd *data_storage_delete_args;
+    struct mu_msg msg;
+    ErrorType error;
+    uint32_t req_len, resp_len;
+
+    /* check the data storage handle before deleting */
+    if (!dataStorageHandle || !dataId) {
+        ALOGE("Invalid data storage input parameters!");
+        return ELE_GENERAL_ERROR;
+    }
+
+    /* construct the message command */
+    memset(&msg, 0, sizeof(msg));
+    req_len = SIZE_MSG(struct data_storage_delete_msg_cmd);
+    data_storage_delete_args = (struct data_storage_delete_msg_cmd *)(msg.data.u8);
+    data_storage_delete_args->data_storage_hdl = dataStorageHandle;
+    data_storage_delete_args->data_id = dataId;
+
+    buildMsgHeader(&msg, DATA_STORAGE_DELETE_REQ, req_len, mu_info.cmd_tag);
+
+    resp_len = SIZE_MSG(struct data_storage_delete_msg_rsp);
+    error = eleSendAndReciveMsg(&msg, req_len, &resp_len);
+    if (error != ELE_NO_ERROR) {
+        ALOGE("Failed to delete data storage! id: 0x%x, error: 0x%x", dataId, error);
+        return error;
+    }
+
+    return ELE_NO_ERROR;
+}
+
 ErrorType EleOperation::eleNvmMasterImport(struct nvm_context *nvmCtx) {
     struct storage_master_import_msg_cmd *master_import_args;
     struct nvm_header blob_hdr;
@@ -1867,6 +2246,81 @@ ErrorType EleOperation::eleHandleChunkGetDone(struct mu_msg *cmd, uint32_t cmdLe
     return error;
 }
 
+ErrorType EleOperation::eleHandleChunkDelete(struct mu_msg *cmd, uint32_t cmdLen,
+                                             struct mu_msg *resp, uint32_t *respLen,
+                                             uint32_t rspMsgInfo, struct nvm_context *nvmCtx) {
+    storage_chunk_delete_msg_cmd *req;
+    storage_chunk_delete_msg_rsp *rsp;
+    ErrorType error = ELE_NO_ERROR;
+    char *file_name = nullptr;
+    struct nvm_blob_id *blob_id;
+
+    req = (storage_chunk_delete_msg_cmd *)(cmd->data.u8);
+    rsp = (storage_chunk_delete_msg_rsp *)(resp->data.u8);
+    nvmCtx->next_command = STORAGE_NVM_LAST_CMD;
+    rsp->rsp_code = ELE_COMMAND_GENERAL_ERROR;
+
+    do {
+        if (rspMsgInfo != ELE_COMMAND_SUCCEED) {
+            rsp->rsp_code = rspMsgInfo;
+            error = ELE_INVALID_MESSAGE;
+            break;
+        }
+
+        if (cmdLen != SIZE_MSG(storage_chunk_delete_msg_cmd)) {
+            ALOGE("The cmd length doesn't match expected!");
+            error = ELE_INVALID_MESSAGE;
+            break;
+        }
+
+        /* TODO remove this because the ELE doesn't return correct storage handle
+        if (req->nvm_storage_handle != nvmCtx->nvm_handle) {
+            ALOGE("The nvm handle doesn't match expected!");
+            error = ELE_INVALID_MESSAGE;
+            break;
+        }
+        */
+
+        /* construct the chunk file name */
+        file_name = (char *)malloc(NVM_MAX_FILE_NAME_LEN);
+        if (!file_name) {
+            ALOGE("Failed to allocate memory!");
+            error = ELE_MEMORY_FAILURE;
+            break;
+        }
+        memset(file_name, '\0', NVM_MAX_FILE_NAME_LEN);
+        blob_id = &(req->blob_id);
+        if (snprintf(file_name, NVM_MAX_FILE_NAME_LEN, "%s%0*x%0*x%0*x", nvmCtx->nvm_chunk_path,
+                     (int)(sizeof(blob_id->ext) * 2), blob_id->ext, (int)(sizeof(blob_id->id) * 2),
+                     blob_id->id, (int)(sizeof(blob_id->metadata) * 2), blob_id->metadata) == -1) {
+            ALOGE("Failed to construct the file name!");
+            error = ELE_GENERAL_ERROR;
+            break;
+        }
+        ALOGI("Ready to delete chunk file:%s.", file_name);
+
+        /* Delete the chunk file */
+        if (remove(file_name) != 0) {
+            if (errno == ENOENT) {
+                ALOGE("Chunk file not found: %s!", file_name);
+                rsp->rsp_code = ELE_COMMAND_INVALID_ID;
+            }
+            ALOGE("Failed to delete chunk file: %s! error: %d", file_name, errno);
+            error = ELE_GENERAL_ERROR;
+            break;
+        }
+        ALOGI("Chunk file file:%s deleted.", file_name);
+
+        rsp->rsp_code = ELE_COMMAND_SUCCEED;
+    } while (false);
+
+    *respLen = SIZE_MSG(storage_chunk_delete_msg_rsp);
+    if (file_name)
+        free(file_name);
+
+    return error;
+}
+
 ErrorType EleOperation::eleHandleNVMRequest(struct nvm_context *nvmCtx) {
     struct mu_msg cmd, resp;
     uint32_t cmd_len = sizeof(cmd);
@@ -1889,8 +2343,9 @@ ErrorType EleOperation::eleHandleNVMRequest(struct nvm_context *nvmCtx) {
         }
 
         /* Check the command, return for invalid command */
-        if (cmd.header.cmd < STORAGE_OPEN_REQ || cmd.header.cmd > STORAGE_CHUNK_GET_DONE_REQ) {
-            ALOGE("The nvm request command received from ELE is out of range!");
+        if (cmd.header.cmd < STORAGE_OPEN_REQ || cmd.header.cmd >= STORAGE_NVM_LAST_CMD) {
+            ALOGE("The nvm request command received(0x%x) from ELE is out of range!",
+                  cmd.header.cmd);
             error = ELE_NO_ERROR;
             break;
         }
@@ -1932,6 +2387,9 @@ ErrorType EleOperation::eleHandleNVMRequest(struct nvm_context *nvmCtx) {
                 error = eleHandleChunkGetDone(&cmd, cmd_len, &resp, &resp_len, rsp_msg_info,
                                               nvmCtx);
                 break;
+            case STORAGE_CHUNK_DELETE_REQ:
+                error = eleHandleChunkDelete(&cmd, cmd_len, &resp, &resp_len, rsp_msg_info, nvmCtx);
+                break;
             default:
                 ALOGE(" Unsupported command (%04x)!", cmd_id);
                 error = ELE_INVALID_ARGS;
@@ -1941,7 +2399,7 @@ ErrorType EleOperation::eleHandleNVMRequest(struct nvm_context *nvmCtx) {
              * Something is wrong with the cmd or response, we don't break
              * because we need to send the failure response back to ELE.
              */
-            ALOGE("Warning: command (%04x) failed!", cmd_id);
+            ALOGE("Warning: command (0x%04x) failed!", cmd_id);
         }
 
         /* Check the response length */
