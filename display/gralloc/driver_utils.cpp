@@ -149,11 +149,25 @@ const format_info_t formats[] = {
                 .is_yuv = false,
         },
         {
+                .id = static_cast<int32_t>(PixelFormat::R_8),
+                .fourcc = DRM_FORMAT_R8,
+                .modifier = DRM_FORMAT_MOD_LINEAR,
+                .is_rgb = false,
+                .is_yuv = false,
+        },
+        {
                 .id = static_cast<int32_t>(PixelFormat::IMPLEMENTATION_DEFINED),
                 .fourcc = DRM_FORMAT_NV12,
                 .modifier = DRM_FORMAT_MOD_LINEAR,
                 .is_rgb = false,
                 .is_yuv = true,
+        },
+        {
+                .id = static_cast<int32_t>(PixelFormat::RGBA_10101010),
+                .fourcc = DRM_FORMAT_AXBXGXRX106106106106,
+                .modifier = DRM_FORMAT_MOD_LINEAR,
+                .is_rgb = true,
+                .is_yuv = false,
         },
 
         /* Following are NXP i.MX defined sepcific foramt in include/graphics_ext.h */
@@ -369,7 +383,7 @@ const struct format_info_t* getPixleFormatInfo(int32_t pixel_format) {
             return &format;
     }
 
-    ALOGE("%s: Cannot support pixel format:%" PRIx32, __func__, pixel_format);
+    ALOGE("%s: Cannot support pixel format:0x%" PRIx32, __func__, pixel_format);
     return nullptr;
 }
 
