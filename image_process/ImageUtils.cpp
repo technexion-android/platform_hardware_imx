@@ -713,6 +713,9 @@ int convertPixelFormatToV4L2Format(int format, bool invert) {
         case HAL_PIXEL_FORMAT_YCbCr_422_I:
             nFormat = v4l2_fourcc('Y', 'U', 'Y', 'V');
             break;
+        case HAL_PIXEL_FORMAT_CbYCrY_422_I:
+            nFormat = v4l2_fourcc('U', 'Y', 'V', 'Y');
+            break;
         case HAL_PIXEL_FORMAT_YCbCr_422_SP:
             nFormat = v4l2_fourcc('N', 'V', '1', '6');
             break;
@@ -789,6 +792,7 @@ int32_t getSizeByForamtRes(int32_t format, uint32_t width, uint32_t height, bool
             size = alignedw * alignedh * 3 / 2;
             break;
 
+        case HAL_PIXEL_FORMAT_CbYCrY_422_I:
         case HAL_PIXEL_FORMAT_YCbCr_422_I:
         case HAL_PIXEL_FORMAT_YCbCr_422_SP:
         case HAL_PIXEL_FORMAT_RAW16:
