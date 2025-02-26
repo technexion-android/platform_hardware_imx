@@ -57,7 +57,8 @@ static bool IsCscSupportByCPU(int srcFormat, int dstFormat) {
     // yuyv -> nv12
     if (((dstFormat == HAL_PIXEL_FORMAT_YCbCr_420_888) ||
          (dstFormat == HAL_PIXEL_FORMAT_YCbCr_420_SP)) &&
-        (srcFormat == HAL_PIXEL_FORMAT_YCbCr_422_I))
+         ((srcFormat == HAL_PIXEL_FORMAT_YCbCr_422_I) ||
+          (srcFormat == HAL_PIXEL_FORMAT_CbYCrY_422_I)))
         return true;
 
     // nv12 -> nv21
@@ -78,6 +79,7 @@ static bool IsCscSupportByG3D(int srcFomat, int dstFormat) {
     if (((dstFormat == HAL_PIXEL_FORMAT_YCbCr_420_888) ||
          (dstFormat == HAL_PIXEL_FORMAT_YCbCr_420_SP)) &&
         ((srcFomat == HAL_PIXEL_FORMAT_YCbCr_422_I) ||
+         (srcFomat == HAL_PIXEL_FORMAT_CbYCrY_422_I) ||
          (srcFomat == HAL_PIXEL_FORMAT_YCbCr_422_SP)))
         return true;
 
@@ -381,6 +383,9 @@ int convertPixelFormatToG2DFormat(int format) {
         case HAL_PIXEL_FORMAT_YCbCr_422_I:
             nFormat = G2D_YUYV;
             break;
+        case HAL_PIXEL_FORMAT_CbYCrY_422_I:
+            nFormat = G2D_UYVY;
+            break;
         case HAL_PIXEL_FORMAT_YCrCb_420_SP:
             nFormat = G2D_NV21;
             break;
@@ -593,13 +598,29 @@ int ImageProcess::ConvertImageByG2DBlit(ImxImageBuffer &dstBuf, ImxImageBuffer &
     }
 
     // can't do csc for some formats.
-    if (!(((dstBuf.mFormat == HAL_PIXEL_FORMAT_YCbCr_420_888) ||
-           (dstBuf.mFormat == HAL_PIXEL_FORMAT_YCbCr_420_SP) ||
-           ((dstBuf.mFormat == HAL_PIXEL_FORMAT_YCrCb_420_SP) &&
-            (srcBuf.mFormat == HAL_PIXEL_FORMAT_YCbCr_422_I)) ||
-           ((srcBuf.mFormat == HAL_PIXEL_FORMAT_YCbCr_422_I) &&
-            (dstBuf.mFormat == HAL_PIXEL_FORMAT_YCbCr_422_I))))) {
-        return -EINVAL;
+    switch(dstBuf.mFormat) {
+        case HAL_PIXEL_FORMAT_YCbCr_420_888:
+        case HAL_PIXEL_FORMAT_YCbCr_420_SP:
+            break;
+        case HAL_PIXEL_FORMAT_YCrCb_420_SP:
+            switch(srcBuf.mFormat) {
+                case HAL_PIXEL_FORMAT_YCbCr_422_I:
+                    break;
+                default:
+                    return(-EINVAL);
+            }
+            break;
+        case HAL_PIXEL_FORMAT_YCbCr_422_I:
+            switch(srcBuf.mFormat) {
+                case HAL_PIXEL_FORMAT_YCbCr_422_I:
+                case HAL_PIXEL_FORMAT_CbYCrY_422_I:
+                    break;
+                default:
+                    return(-EINVAL);
+            }
+            break;
+        default:
+            return(-EINVAL);
     }
 
     int ret;
@@ -779,8 +800,20 @@ int ImageProcess::ConvertImageByG2D(ImxImageBuffer &dstBuf, ImxImageBuffer &srcB
         LockG2dAddr(dstBuf);
     }
 
-    if ((srcBuf.mFormat == dstBuf.mFormat) && (srcBuf.mWidth == dstBuf.mWidth) &&
-        (srcBuf.mHeight == dstBuf.mHeight) && (srcBuf.mZoomRatio <= 1.0)) {
+    int g2c_copy = 1;
+    switch(dstBuf.mFormat) {
+        case HAL_PIXEL_FORMAT_CbYCrY_422_I:
+            // Invalid destination pixel format
+            // Force enter into g2c_blit
+            g2c_copy = 0;
+            break;
+        default:
+            g2c_copy = ((srcBuf.mFormat == dstBuf.mFormat) && (srcBuf.mWidth == dstBuf.mWidth) &&
+                        (srcBuf.mHeight == dstBuf.mHeight) && (srcBuf.mZoomRatio <= 1.0));
+            break;
+    }
+
+    if (g2c_copy) {
         ret = ConvertImageByG2DCopy(dstBuf, srcBuf);
     } else {
         ret = ConvertImageByG2DBlit(dstBuf, srcBuf);
@@ -1351,7 +1384,7 @@ g3d_resize:
 
 cpu_resize:
     // cpu resize
-    if (srcBuf.mFormat == HAL_PIXEL_FORMAT_YCBCR_422_I)
+    if ((srcBuf.mFormat == HAL_PIXEL_FORMAT_YCBCR_422_I) || (srcBuf.mFormat == HAL_PIXEL_FORMAT_CbYCrY_422_I))
         ret = yuv422iResize((uint8_t *)srcBuf.mVirtAddr, srcBuf.mWidth, srcBuf.mHeight,
                             (uint8_t *)dstBuf.mVirtAddr, dstBuf.mWidth, dstBuf.mHeight);
     else if (srcBuf.mFormat == HAL_PIXEL_FORMAT_YCBCR_422_SP)
