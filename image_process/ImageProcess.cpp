@@ -780,9 +780,9 @@ int ImageProcess::ConvertImageByG2D(ImxImageBuffer &dstBuf, ImxImageBuffer &srcB
     }
 
     int g2c_copy = 1;
-    switch(dstBuf.mFormat) {
+    switch(srcBuf.mFormat) {
         case HAL_PIXEL_FORMAT_CbYCrY_422_I:
-            // Invalid destination pixel format
+            // Invalid source pixel format
             // Force enter into g2c_blit
             g2c_copy = 0;
             break;
