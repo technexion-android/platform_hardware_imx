@@ -598,6 +598,20 @@ int ImageProcess::ConvertImageByG2DBlit(ImxImageBuffer &dstBuf, ImxImageBuffer &
     }
 
     // can't do csc for some formats.
+    /*
+     * Convert to the valid display pixel format for JpegBuilder
+     * Please add the valid pixel format yourself
+     *
+     * NxP only support 3 display pixel format
+     *  1. HAL_PIXEL_FORMAT_YCbCr_422_I
+     *  2. HAL_PIXEL_FORMAT_YCbCr_420_SP
+     *  3. HAL_PIXEL_FORMAT_RAW16
+     */
+    switch(dstBuf.mFormat) {
+        case HAL_PIXEL_FORMAT_CbYCrY_422_I:
+            dstBuf.mFormat = HAL_PIXEL_FORMAT_YCbCr_422_I;
+    }
+
     switch(dstBuf.mFormat) {
         case HAL_PIXEL_FORMAT_YCbCr_420_888:
         case HAL_PIXEL_FORMAT_YCbCr_420_SP:
