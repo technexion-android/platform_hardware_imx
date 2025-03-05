@@ -226,4 +226,12 @@ void ReleaseImxStreamBuffer(ImxStreamBuffer *imxBuf) {
     delete imxBuf;
 }
 
+void SwitchStreamBuf(ImxStreamBuffer &imxBufA, ImxStreamBuffer &imxBufB) {
+    ImxStreamBuffer tmpBuf = imxBufA;
+    imxBufA = imxBufB;
+    imxBufB = tmpBuf;
+
+    return;
+}
+
 } // namespace android
