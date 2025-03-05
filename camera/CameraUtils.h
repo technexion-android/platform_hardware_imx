@@ -194,6 +194,7 @@ int32_t handleFrame(ImxStreamBuffer &dstBuf, ImxStreamBuffer &srcBuf, ImxEngine 
 int32_t ImageBufferToStreamBuffer(ImxImageBuffer &imageBuffer, ImxStreamBuffer &streamBuffer);
 ImxStreamBuffer *CreateImxStreamBufferFromBufferHandle(buffer_handle_t buffer, Stream *stream);
 void ReleaseImxStreamBuffer(ImxStreamBuffer *imxBuf);
+void SwitchStreamBuf(ImxStreamBuffer &imxBufA, ImxStreamBuffer &imxBufB);
 } // namespace android
 
 #endif // CAMERA_UTILS_H
