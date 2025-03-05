@@ -1141,7 +1141,7 @@ status_t CameraDeviceSessionHwlImpl::ProcessCapbuf2Outbuf(ImxStreamBuffer *srcBu
 
     if (convBuf.mPhyAddr > 0) {
         // REMEMBER to restore srcBuf from convBuf
-        SwitchImxBuf(*srcBuf, convBuf);
+        SwitchStreamBuf(*srcBuf, convBuf);
         if (convBuf.mStream && (convBuf.mStream != srcBuf->mStream)) {
             delete(convBuf.mStream);
         }
@@ -2126,7 +2126,7 @@ int CameraDeviceSessionHwlImpl::conv_pixel_format(ImxStreamBuffer *convBuf, ImxS
 
     handleFrame(*convBuf, *srcBuf, hw_type);
     // Swap srcBuf and convBuf
-    SwitchImxBuf(*srcBuf, *convBuf);
+    SwitchStreamBuf(*srcBuf, *convBuf);
     ret = 0;
 
     return(ret);
