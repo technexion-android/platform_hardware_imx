@@ -1145,7 +1145,7 @@ status_t CameraDeviceSessionHwlImpl::ProcessCapbuf2Outbuf(ImxStreamBuffer *srcBu
         if (convBuf.mStream && (convBuf.mStream != srcBuf->mStream)) {
             delete(convBuf.mStream);
         }
-        FreePhyBuffer(convBuf);
+        FreePhyBuffer(convBuf.buffer);
     }
     ReleaseImxStreamBuffer(dstBuf);
     return 0;
@@ -2093,7 +2093,7 @@ void CameraDeviceSessionHwlImpl::RepeatingRequestEnd(
     int32_t /*frame_number*/, const std::vector<int32_t>& /*stream_ids*/) {
 }
 
-int CameraDeviceSessionHwlImpl::conv_pixel_format(ImxStreamBuffer *convBuf, ImxStreamBuffer *srcBuf, uint32_t nu_pixel_fmt, CscHw hw_type) {
+int CameraDeviceSessionHwlImpl::conv_pixel_format(ImxStreamBuffer *convBuf, ImxStreamBuffer *srcBuf, int32_t nu_pixel_fmt, ImxEngine hw_type) {
     int ret = -1;
     ImxStream *src = srcBuf->mStream;
 
@@ -2107,16 +2107,14 @@ int CameraDeviceSessionHwlImpl::conv_pixel_format(ImxStreamBuffer *convBuf, ImxS
 
     memset(convBuf, 0, sizeof(*convBuf));
     convBuf->mFormatSize = srcBuf->mFormatSize;
-    convBuf->mSize = (convBuf->mFormatSize + PAGE_SIZE) & (~(PAGE_SIZE - 1));
-    ret = AllocPhyBuffer(*convBuf);
+    ret = AllocPhyBuffer(srcBuf->mWidth, srcBuf->mHeight, nu_pixel_fmt, *convBuf);
     if (ret) {
         ALOGE("%s:%d AllocPhyBuffer failed", __func__, __LINE__);
         return(BAD_VALUE);
     }
     convBuf->mStream = new ImxStream(src->width(), src->height(), nu_pixel_fmt, src->usage(), src->id(), src->isPreview());
 
-    fsl::ImageProcess *imageProcess = fsl::ImageProcess::getInstance();
-    imageProcess->handleFrame(*convBuf, *srcBuf, hw_type);
+    handleFrame(*convBuf, *srcBuf, hw_type);
     // Swap srcBuf and convBuf
     SwitchImxBuf(*srcBuf, *convBuf);
     ret = 0;
