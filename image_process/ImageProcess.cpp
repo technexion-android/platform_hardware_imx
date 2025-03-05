@@ -814,20 +814,20 @@ int ImageProcess::ConvertImageByG2D(ImxImageBuffer &dstBuf, ImxImageBuffer &srcB
         LockG2dAddr(dstBuf);
     }
 
-    int g2c_copy = 1;
+    int g2d_copy = 1;
     switch(srcBuf.mFormat) {
         case HAL_PIXEL_FORMAT_CbYCrY_422_I:
             // Invalid source pixel format
             // Force enter into g2c_blit
-            g2c_copy = 0;
+            g2d_copy = 0;
             break;
         default:
-            g2c_copy = ((srcBuf.mFormat == dstBuf.mFormat) && (srcBuf.mWidth == dstBuf.mWidth) &&
+            g2d_copy = ((srcBuf.mFormat == dstBuf.mFormat) && (srcBuf.mWidth == dstBuf.mWidth) &&
                         (srcBuf.mHeight == dstBuf.mHeight) && (srcBuf.mZoomRatio <= 1.0));
             break;
     }
 
-    if (g2c_copy) {
+    if (g2d_copy) {
         ret = ConvertImageByG2DCopy(dstBuf, srcBuf);
     } else {
         ret = ConvertImageByG2DBlit(dstBuf, srcBuf);

@@ -849,6 +849,8 @@ int32_t getSizeByForamtRes(int32_t format, uint32_t width, uint32_t height, bool
 
 int AllocPhyBuffer(uint32_t width, uint32_t height, uint32_t format, ImxImageBuffer &outBufInfo,
                    bool bCached) {
+    if (format == HAL_PIXEL_FORMAT_CbYCrY_422_I)
+        format = HAL_PIXEL_FORMAT_YCbCr_422_I;
     buffer_handle_t bufferHandle;
     uint32_t bufferStride;
     uint64_t usage = GRALLOC_USAGE_HW_CAMERA_WRITE | GRALLOC_USAGE_PRIVATE_3; // need to make sure physical contiguous memory
