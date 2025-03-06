@@ -174,10 +174,7 @@ status_t CameraDeviceSessionHwlImpl::Initialize(uint32_t camera_id,
     else
         m_libcamera_stream_format = HAL_PIXEL_FORMAT_YCBCR_422_I;
 
-    if (strstr(mSensorData.camera_name, "ov5640"))
-        m_bConfigLibcameraByIntent = true;
-    else
-        m_bConfigLibcameraByIntent = false;
+    m_bConfigLibcameraByIntent = false;
 
     mPreviewResolutionCount = pDev->mPreviewResolutionCount;
     memcpy(mPreviewResolutions, pDev->mPreviewResolutions, MAX_RESOLUTION_SIZE * sizeof(int));
@@ -805,6 +802,8 @@ status_t CameraDeviceSessionHwlImpl::ConfigurePipeline(
     std::set<libcamera::Stream *> libCameraStreamSet;
     libcamera::StreamConfiguration cfg;
     std::unique_ptr<libcamera::CameraConfiguration> camCfg;
+    uint32_t maxStreamWidth = 0;
+    uint32_t maxStreamHeight = 0;
 
     int stream_num = request_config.streams.size();
     if (stream_num == 0) {
@@ -846,6 +845,11 @@ status_t CameraDeviceSessionHwlImpl::ConfigurePipeline(
         HalStream hal_stream;
         memset(&hal_stream, 0, sizeof(hal_stream));
         int usage = 0;
+
+        if ((stream.width > maxStreamWidth) && (stream.height > maxStreamHeight)) {
+            maxStreamWidth = stream.width;
+            maxStreamHeight = stream.height;
+        }
 
         switch (stream.format) {
             case HAL_PIXEL_FORMAT_RAW16:
@@ -925,12 +929,21 @@ status_t CameraDeviceSessionHwlImpl::ConfigurePipeline(
     }
 
     if (m_bConfigLibcameraByIntent == false) {
+        // imx95 fixed use sensor size to config libcamera.
+        uint32_t configWidth = mMaxWidth;
+        uint32_t configHeight = mMaxHeight;
+
+        if (strstr(mSensorData.camera_name, "ov5640")) {
+            configWidth = maxStreamWidth;
+            configHeight = maxStreamHeight;
+        }
+
         ret = ConfigLibcameraLocked(mSensorData.mLibcameraBuffers, m_libcamera_stream_format,
-                                    mMaxWidth, mMaxHeight);
+                                    configWidth, configHeight);
         if (ret) {
             ALOGE("%s: ConfigLibcameraLocked failed, ret %d, buffers %d, foramt 0x%x, width %d, height %d",
                   __func__, ret, mSensorData.mLibcameraBuffers, m_libcamera_stream_format,
-                  mMaxWidth, mMaxHeight);
+                  configWidth, configHeight);
             goto err_out;
         }
     }
@@ -1341,6 +1354,8 @@ status_t CameraDeviceSessionHwlImpl::SubmitRequests(uint32_t frame_number,
 
     int ret = 0;
 
+    // Although m_bConfigLibcameraByIntent is hard code to false,
+    // keep the logic, so can easily switch to it if need.
     if (m_bConfigLibcameraByIntent) {
         ret = PickAndConfigLibcamera(requests);
         if (ret) {
