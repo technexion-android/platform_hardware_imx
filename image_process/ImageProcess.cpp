@@ -304,7 +304,7 @@ int ImageProcess::ConvertImage(ImxImageBuffer &dstBuf, ImxImageBuffer &srcBuf, I
             char socType[128] = {0};
             property_get("ro.boot.soc_type", socType, "");
             if (strstr(socType, "imx8mp")) {
-                engine = ENG_CPU;
+                engine = ENG_OCLCVT;
             }
         }
     }
