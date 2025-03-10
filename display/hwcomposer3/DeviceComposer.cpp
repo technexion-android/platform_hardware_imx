@@ -550,6 +550,9 @@ int DeviceComposer::setG2dSurface(struct g2d_surfaceEx& surfaceX, buffer_handle_
     surface.planes[0] = static_cast<g2d_phys_addr_t>(phys + offset);
 
     switch (surface.format) {
+        case G2D_GRAY8:
+            surface.stride = static_cast<int>(info.strides[0]); // convert to pixel stride
+            break;
         case G2D_RGB565:
         case G2D_YUYV:
             surface.stride = static_cast<int>(info.strides[0] / 2); // convert to pixel stride
@@ -648,6 +651,9 @@ enum g2d_format DeviceComposer::convertFormat(uint32_t format, buffer_handle_t h
             halFormat = G2D_NV12;
             break;
 #endif
+        case DRM_FORMAT_R8:
+            halFormat = G2D_GRAY8;
+            break;
         default:
             ALOGE("%s: unsupported format:0x%x", __FUNCTION__, format);
             halFormat = G2D_RGBA8888;
@@ -897,7 +903,8 @@ bool DeviceComposer::checkMustDeviceComposition(Layer* layer) {
 
     // vpu tile format must be handled by device.
     if (layerBuffer != nullptr &&
-        (info.modifier == DRM_FORMAT_MOD_AMPHION_TILED || info.usage & GRALLOC_USAGE_PROTECTED)) {
+        (info.modifier == DRM_FORMAT_MOD_AMPHION_TILED || info.usage & GRALLOC_USAGE_PROTECTED ||
+         info.drm_format == DRM_FORMAT_R8)) {
         DEBUG_LOG("%s: 2d composition is must", __FUNCTION__);
         return true;
     }
