@@ -653,6 +653,12 @@ void DrmDisplay::placeholderDisplayConfigs() {
             newConfig.height = 720;
         }
 #endif
+
+        uint32_t width = newConfig.width, height = newConfig.height, type = UI_SCALE_NONE;
+        if (customizeGUIResolution(width, height, &type)) {
+            newConfig.width = width;
+            newConfig.height = height;
+        }
     }
 
     mConfigs->emplace(mStartConfigId, newConfig);
