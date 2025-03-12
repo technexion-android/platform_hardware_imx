@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2008 The Android Open Source Project
  * Copyright (C) 2012-2016 Freescale Semiconductor, Inc.
- * Copyright 2017-2023 NXP
+ * Copyright 2017-2023, 2025 NXP
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -267,7 +267,7 @@ failure:
 }
 
 int vpu_encode(void *inYuv, void *inYuvPhy, int Width, int Height, int /*quality*/, int color,
-               void *outBuf, int outSize, int colorFormat) {
+               void *outBuf, int outSize, int colorFormat, bool debug = false) {
     VpuEncRetCode ret;
     int size = 0;
     VpuVersionInfo ver;
@@ -458,7 +458,7 @@ YuvToJpegEncoder::YuvToJpegEncoder(int format)
 int YuvToJpegEncoder::encode(void *inYuv, void *inYuvPhy, int inSize, int inFd,
                              buffer_handle_t inHandle, int inWidth, int inHeight, int quality,
                              void *outBuf, int outSize, int outWidth, int outHeight,
-                             const void *app1Buffer, size_t app1Size) {
+                             const void *app1Buffer, size_t app1Size, bool debug) {
 #ifdef BOARD_HAVE_VPU
     // use vpu to encode
     if ((inWidth == outWidth) && (inHeight == outHeight) && supportVpu) {
@@ -502,7 +502,7 @@ int YuvToJpegEncoder::encode(void *inYuv, void *inYuvPhy, int inSize, int inFd,
         // The 3rd para is pass to handleFrameByG2D to judge whether need lock g2d address.
         // Pass G2D is ok. For CPU, handleFrameByG2D will just return and use soft resize.
         // BTW: DPU is used HwJpegEncoder for 8q.
-        handleFrame(*resizeBuf, srcBuf, ENG_NOTCARE);
+        handleFrame(*resizeBuf, srcBuf, ENG_NOTCARE, debug);
 
         inYuv = (void *)resizeBuf->mVirtAddr;
     }
