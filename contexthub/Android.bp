@@ -16,25 +16,22 @@
 
 cc_binary {
     name: "android.hardware.contexthub-service.imx",
-    defaults: ["chre_aidl_hal_imx_defaults"],
+    defaults: [
+        "//system/chre:contexthub_hal_defaults",
+        "//system/chre:pw_rpc_cflags_chre",
+        "//system/chre:pw_rpc_nanopb_lib_dependencies",
+        "chre_aidl_hal_imx_defaults",
+    ],
     vendor: true,
     relative_install_path: "hw",
     srcs: [
-        ":hal_aidl_imx_srcs",
+        "//system/chre:imx_contexthub_hal_common_srcs",
+        "aidl/imx_context_hub_aidl.cc",
         "aidl/service.cc",
     ],
     init_rc: ["aidl/android.hardware.contexthub-service.imx.rc"],
     vintf_fragments: ["aidl/android.hardware.contexthub-service.imx.xml"],
     visibility: ["//visibility:public"],
-}
-
-filegroup {
-    name: "hal_aidl_imx_srcs",
-    srcs: [
-        "aidl/imx_context_hub_aidl.cc",
-        "hal_chre_socket_connection.cc",
-        "permissions_util.cc",
-    ],
 }
 
 cc_defaults {
@@ -58,7 +55,7 @@ cc_defaults {
     ],
     shared_libs: [
         "android.frameworks.stats-V2-ndk",
-        "android.hardware.contexthub-V3-ndk",
+        "android.hardware.contexthub-V4-ndk",
         "chre_atoms_log",
         "chremetrics-cpp",
         "libbase",
