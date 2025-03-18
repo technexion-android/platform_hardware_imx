@@ -1,5 +1,5 @@
 /*
- *  Copyright 2020 NXP.
+ *  Copyright 2020, 2025 NXP.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -378,11 +378,15 @@ capture_data:
     nsecs_t v4l2BufTime = 0;
 
     if (cfilledbuffer.flags & V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC) {
-        v4l2BufTime = static_cast<nsecs_t>(cfilledbuffer.timestamp.tv_sec) * 1000000000LL +
-                cfilledbuffer.timestamp.tv_usec * 1000LL;
+        v4l2BufTime = static_cast<nsecs_t>(cfilledbuffer.timestamp.tv_sec) * NS_PER_SEC +
+                cfilledbuffer.timestamp.tv_usec * NS_PER_US;
     } else {
         v4l2BufTime = curTimeNs;
     }
+
+    // In case the driver not set the timestamp.
+    if (v4l2BufTime == 0)
+        v4l2BufTime = curTimeNs;
 
     if (curTimeNs < v4l2BufTime) {
         lagNs = 0;
@@ -416,8 +420,7 @@ capture_data:
 
     mV4l2Lock.unlock();
 
-    mBuffers[cfilledbuffer.index]->timestamp_ns = cfilledbuffer.timestamp.tv_sec * NS_PER_SEC +
-            cfilledbuffer.timestamp.tv_usec * NS_PER_US;
+    mBuffers[cfilledbuffer.index]->timestamp_ns = v4l2BufTime;
     return mBuffers[cfilledbuffer.index];
 }
 
