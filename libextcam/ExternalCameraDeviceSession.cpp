@@ -225,6 +225,7 @@ bool ExternalCameraDeviceSession::initialize() {
     mOutputThread->setMjpegCopy(mMjpgCopy);
     mOutputThread->setExifMakeModel(mExifMake, mExifModel);
     mOutputThread->setBlitEngine(mCfg.blitEngine);
+    mOutputThread->m_IspWrapper = std::make_unique<ExternalISPWrapper>(mV4l2Fd.get());
 
     status_t status = initDefaultRequests();
     if (status != OK) {
@@ -3464,6 +3465,9 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
             return onDeviceError("%s: failed to send buffer request!", __FUNCTION__);
         }
     }
+
+    // ISP process based on meta
+    m_IspWrapper->process(req->setting);
 
     std::unique_lock<std::mutex> lk(mBufferLock);
     // Convert input V4L2 frame to YU12 of the same size
