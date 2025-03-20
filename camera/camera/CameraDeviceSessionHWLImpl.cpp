@@ -335,10 +335,6 @@ int CameraDeviceSessionHwlImpl::HandleIntent(HwlPipelineRequest *hwReq) {
             fps = entry.data.i32[0];
     }
 
-    // In HDR mode, max fps is 30
-    if ((sceneMode == ANDROID_CONTROL_SCENE_MODE_HDR) && (fps > 30))
-        fps = 30;
-
     PipelineInfo *pipeline_info = GetPipelineInfo(pipeline_id);
     if (pipeline_info == NULL) {
         ALOGW("%s: Unexpected, pipeline %d is invalid", __func__, pipeline_id);
@@ -459,10 +455,6 @@ int CameraDeviceSessionHwlImpl::StartStreamOnMaxConfiguredResolution(HwlPipeline
                 fps = entry.data.i32[0];
         }
     }
-
-    // In HDR mode, max fps is 30
-    if ((sceneMode == ANDROID_CONTROL_SCENE_MODE_HDR) && (fps > 30))
-        fps = 30;
 
     uint8_t captureIntent = pVideoStreams[0]->mCaptureIntent;
     pVideoStreams[0]->SetBufferNumber(NUM_PREVIEW_BUFFER + 1);

@@ -306,6 +306,7 @@ public:
     int32_t getRawV4l2Format() { return m_raw_v4l2_format; }
     uint32_t cameraId() { return camera_id_; }
     sp<ImgProcThread> &getImgProcThread() { return mImgProcThread; }
+    struct viv_caps_supports const &getCaps() { return caps_supports; }
 
 public:
     bool mDebug;

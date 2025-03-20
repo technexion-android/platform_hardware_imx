@@ -120,6 +120,15 @@ int32_t VideoStream::ConfigAndStart(uint32_t format, uint32_t width, uint32_t he
                                     uint8_t intent, uint8_t sceneMode, bool recover) {
     int ret = 0;
 
+    int sensorMode = mSession->getCapsMode(sceneMode);
+    // limit fps in different sensor mode
+    uint32_t modeMaxFps = mSession->getCaps().mode[sensorMode].fps;
+    if (modeMaxFps > 0 && fps > modeMaxFps) {
+        ALOGI("%s: limit fps %d to %d due to sensor mode %d", __func__, fps, modeMaxFps,
+              sensorMode);
+        fps = modeMaxFps;
+    }
+
     ALOGI("%s: current format 0x%x, res %dx%d, fps %d, sceneMode %d", __func__, mFormat, mWidth,
           mHeight, mFps, mSceneMode);
 
