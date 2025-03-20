@@ -1691,10 +1691,9 @@ status_t CameraDeviceSessionHwlImpl::ConfigurePipeline(
                 break;
         }
 
-        // Below 2 cases need change format/resolution by intent.
-        // Capture raw picture: no csc from bayer to yuv.
-        // Capture 4k picture: scale 2160p to other resolution need some time.
-        if ((rawIdx >= 0) || ((maxStreamWidth == 3840) && (maxStreamHeight == 2160)))
+        // ISP funcitons such as AEC/AWB are not applied on raw image, so need configure
+        // w/h/format by capture intent. Or the YUV preview may has bad quality.
+        if (rawIdx >= 0)
             m_bConfigV4L2ByIntent = true;
         else
             m_bConfigV4L2ByIntent = false;
