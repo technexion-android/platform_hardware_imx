@@ -459,11 +459,11 @@ pcm_format aidl2c_AudioFormatDescription_pcm_format(const AudioFormatDescription
 void applyGain(void* buffer, float gain, size_t bufferSizeBytes, enum pcm_format pcmFormat,
                int channelCount) {
     if (channelCount != 1 && channelCount != 2) {
-        LOG(WARNING) << __func__ << ": unsupported channel count " << channelCount;
+        LOG(VERBOSE) << __func__ << ": unsupported channel count " << channelCount;
         return;
     }
     if (!getPcmFormatToAudioFormatDescMap().contains(pcmFormat)) {
-        LOG(WARNING) << __func__ << ": unsupported pcm format " << pcmFormat;
+        LOG(VERBOSE) << __func__ << ": unsupported pcm format " << pcmFormat;
         return;
     }
     if (std::abs(gain - kUnityGainFloat) < 1e-6) {
