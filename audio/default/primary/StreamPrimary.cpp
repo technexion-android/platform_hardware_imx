@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2023 The Android Open Source Project
- * Copyright 2024 NXP
+ * Copyright 2024-2025 NXP
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,6 +36,7 @@ extern "C" {
 #include "alsa_device_profile.h"
 }
 
+#define DEFAULT_PERIOD_SIZE 1024
 #define DEFAULT_PERIOD_COUNT 4
 #define DEFAULT_INPUT_RATE 48000
 #define LPA_PERIOD_MS 500
@@ -428,6 +429,20 @@ std::vector<alsa::DeviceProfile> StreamPrimary::getDeviceProfiles() {
         }
         if (card->out_period_count) {
             mConfig->period_count = card->out_period_count;
+        }
+
+        if (!mIsInput) {
+            struct pcm_params *params = pcm_params_get(card->card, 0, PCM_OUT);
+            if (params) {
+                unsigned int max_period_size = pcm_params_get_max(params, PCM_PARAM_PERIOD_SIZE);
+                if (mConfig->period_size * mConfig->channels > max_period_size) {
+                    mConfig->period_size = DEFAULT_PERIOD_SIZE;
+                    LOG(INFO) << __func__ << ": Force set period size from " <<
+                        mBufferSizeFrames << " to " << DEFAULT_PERIOD_SIZE <<
+                        ", the max is " << max_period_size;
+                }
+                pcm_params_free(params);
+            }
         }
 
         if (property_get_int32("vendor.audio.lpa.enable", 0) && mDirectOutput) {
