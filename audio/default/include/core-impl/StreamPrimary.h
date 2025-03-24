@@ -67,8 +67,8 @@ class StreamPrimary : public StreamAlsa {
     bool mPrimaryOutput = false;
     bool mDirectOutput = false;
     struct audio_card *mCard = NULL;
-    struct resampler_itfe *mResampler;
-    int16_t *mResamplerBuffer;
+    struct resampler_itfe *mResampler = NULL;
+    int16_t *mResamplerBuffer = NULL;
     std::optional<struct pcm_config> mSavedConfig;
 
     void tryStart();
