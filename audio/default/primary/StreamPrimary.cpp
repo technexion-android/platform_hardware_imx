@@ -113,9 +113,11 @@ void StreamPrimary::tryStart(){
 }
 
 void StreamPrimary::stop() {
-    if (mDirectOutput && mCard) {
-        mCard->locked = false;
-        LOG(DEBUG) << __func__ << ": unlock the card.";
+    if (mCard) {
+        if (mIsInput)
+            mCard->inOwner = OWNER_NONE;
+        else
+            mCard->outOwner = OWNER_NONE;
     }
     mStarted = false;
     if (mResampler) {
@@ -161,17 +163,27 @@ void StreamPrimary::stop() {
     if (!mCard) {
         return ::android::NO_INIT;
     }
+    bool toStart = false;
     if (mPrimaryOutput) {
-        if (!mCard->locked) {
-            tryStart();
+        /* output priority: DIRECT(3) > PRIMARY(2) > HFP(1) > NONE(0) */
+        if (mCard->outOwner < OWNER_DIRECT) {
+            mCard->outOwner = OWNER_PRIMARY;
+            toStart = true;
+        }
+    } else if (mDirectOutput) {
+        mCard->outOwner = OWNER_DIRECT;
+        toStart = true;
+    } else if (mIsInput) {
+        /* input priority: HFP(1) > PRIMARY(2) > NONE(0) */
+        if (mCard->inOwner != OWNER_HFP) {
+            mCard->inOwner = OWNER_PRIMARY;
+            toStart = true;
         }
     } else {
-        if (mDirectOutput) {
-            mCard->locked = true;
-            LOG(DEBUG) << __func__ << ": lock the card";
-        }
-        tryStart();
+        toStart = true;
     }
+    if (toStart)
+        tryStart();
 
     if (mIsInput && !mStarted && mConfig->rate != DEFAULT_INPUT_RATE) {
         auto requested_rate = mConfig->rate;
@@ -219,29 +231,56 @@ void StreamPrimary::stop() {
         return mStubDriver.transfer(buffer, frameCount, actualFrameCount, latencyMs);
     }
 
+    bool toStandby = false, toStart = false;
     if (mPrimaryOutput) {
-        if (mStarted && mCard->locked) {
-            LOG(DEBUG) << __func__ << ": standby the primary stream to release the card.";
-            standby();
-        } else if (!mStarted && !mCard->locked) {
-            tryStart();
+        /* output priority: DIRECT(3) > PRIMARY(2) > HFP(1) > NONE(0) */
+        if (mCard->outOwner > OWNER_PRIMARY) {
+            if (mStarted) {
+                LOG(DEBUG) << __func__ << ": standby the primary output for direct";
+                toStandby = true;
+            }
+        } else if (mCard->outOwner == OWNER_PRIMARY) {
+            if (!mStarted) {
+                toStart = true;
+            }
+        } else {
+            mCard->outOwner = OWNER_PRIMARY;
         }
     } else if (mDirectOutput) {
-        if (!mStarted) {
-            if (mStartRetryCount < kMaxStartRetryCount) {
-                tryStart();
-                if (mStarted)
-                    mStartRetryCount = 0;
-                else {
-                    mStartRetryCount ++;
-                    if (mStartRetryCount >= kMaxStartRetryCount)
-                        LOG(DEBUG) << __func__ << ": stop trying to start after " << mStartRetryCount << " times";
-                }
+        if (mCard->outOwner == OWNER_DIRECT) {
+            if (!mStarted && mStartRetryCount < kMaxStartRetryCount) {
+                toStart = true;
             }
+        } else {
+            mCard->outOwner = OWNER_DIRECT;
         }
-        if (!mCard->locked) {
-            LOG(WARNING) << __func__ << ": error state, direct transfer without lock.";
-            mCard->locked = true;
+    } else if (mIsInput) {
+        /* input priority: HFP(1) > PRIMARY(2) > NONE(0) */
+        if (mCard->inOwner == OWNER_HFP) {
+            if (mStarted) {
+                LOG(DEBUG) << __func__ << ": standby the primary input for hfp";
+                toStandby = true;
+            }
+        } else if (mCard->inOwner == OWNER_PRIMARY) {
+            if (!mStarted) {
+                toStart = true;
+            }
+        } else {
+            mCard->inOwner = OWNER_PRIMARY;
+        }
+    }
+    if (toStart)
+        tryStart();
+    if (toStandby)
+        standby();
+
+    if (mDirectOutput && mCard->outOwner == OWNER_DIRECT) {
+        if (mStarted)
+            mStartRetryCount = 0;
+        else {
+            mStartRetryCount ++;
+            if (mStartRetryCount == kMaxStartRetryCount)
+                LOG(DEBUG) << __func__ << ": stop trying to start after " << mStartRetryCount << " times";
         }
     }
 

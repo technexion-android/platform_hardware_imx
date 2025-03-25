@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2024 NXP
+ * Copyright 2020-2025 NXP
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -113,7 +113,8 @@ void AudioCardManager::scanAvailableCard()
         }
         audio_card->card = card;
         audio_card->card_name = strdup(card_name);
-        audio_card->locked = false;
+        audio_card->inOwner = OWNER_NONE;
+        audio_card->outOwner = OWNER_NONE;
         if (strstr(card_name, "cs42888")) {
             mCards.insert(mCards.begin(), audio_card);
             mMixers.insert(mMixers.begin(), mixer);
