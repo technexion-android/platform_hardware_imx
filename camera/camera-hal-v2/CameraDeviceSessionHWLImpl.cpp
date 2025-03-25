@@ -1312,8 +1312,8 @@ status_t CameraDeviceSessionHwlImpl::queueRequestToLibcameraLocked(HalCameraMeta
         usleep(WAIT_ITVL_US);
         waitMs += WAIT_ITVL_MS;
         mLock.lock();
-        if (waitMs > 500) {
-            ALOGE("%s: mFrameBuffersFree still empty, wait 500ms", __func__);
+        if (waitMs > 1000) {
+            ALOGE("%s: mFrameBuffersFree still empty, wait 1000ms", __func__);
             return BAD_VALUE;
         }
     }
