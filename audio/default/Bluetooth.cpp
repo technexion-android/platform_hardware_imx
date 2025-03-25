@@ -209,6 +209,7 @@ void *Bluetooth::uplink_task_impl()
                 }
             }
         } else {
+            std::unique_lock lock(card->mLock);
             card->inOwner = OWNER_HFP;
             continue;
         }
@@ -304,6 +305,7 @@ void *Bluetooth::downlink_task_impl()
                 }
             }
         } else {
+            std::unique_lock lock(card->mLock);
             card->outOwner = OWNER_HFP;
             continue;
         }

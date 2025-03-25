@@ -98,6 +98,7 @@ struct audio_card {
     unsigned int in_period_count;
     unsigned int outOwner;
     unsigned int inOwner;
+    std::mutex mLock;
 };
 
 }  // namespace aidl::android::hardware::audio::core
