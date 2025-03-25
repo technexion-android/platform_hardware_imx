@@ -179,6 +179,12 @@ void *Bluetooth::uplink_task_impl()
     size_t inFrameCount = 0;
     size_t outFrameCount = 0;
 
+    auto card = AudioCardManager::getCardForDevice(AUDIO_DEVICE_IN_BUILTIN_MIC);
+    if (!card) {
+        LOG(ERROR) << "card is not found";
+        return NULL;
+    }
+
     if (!bufferMic) {
         LOG(ERROR) << __func__ << "Failed to alloc " << bytesMic << " bytes";
         return NULL;
@@ -192,6 +198,21 @@ void *Bluetooth::uplink_task_impl()
 
     LOG(INFO) << __func__ << " start";
     while (uplink_running) {
+        /* input priority: HFP(1) > PRIMARY(2) > NONE(0) */
+        if (card->inOwner == OWNER_HFP) {
+            if (!pcm_mic_in) {
+                ret = openPcmForDevice(AUDIO_DEVICE_IN_BUILTIN_MIC, PCM_IN,
+                        &pcm_config_speaker, &pcm_mic_in);
+                if (ret) {
+                    usleep(5000);
+                    continue;
+                }
+            }
+        } else {
+            card->inOwner = OWNER_HFP;
+            continue;
+        }
+
         ret = pcm_read(pcm_mic_in, bufferMic, bytesMic);
         if (ret) {
             LOG(ERROR) << __func__ << " pcm read failed: ret: " << ret << " " << pcm_get_error(pcm_mic_in);
@@ -245,6 +266,12 @@ void *Bluetooth::downlink_task_impl()
     size_t inFrameCount = 0;
     size_t outFrameCount = 0;
 
+    auto card = AudioCardManager::getCardForDevice(AUDIO_DEVICE_OUT_SPEAKER);
+    if (!card) {
+        LOG(ERROR) << "card is not found";
+        return NULL;
+    }
+
     if (!bufferSpeaker) {
         LOG(ERROR) << __func__ << "Failed to alloc " << bytesSpeaker << " bytes";
         return NULL;
@@ -258,6 +285,28 @@ void *Bluetooth::downlink_task_impl()
 
     LOG(INFO) << __func__ << " start";
     while (downlink_running) {
+        /* output priority: DIRECT(3) > PRIMARY(2) > HFP(1) > NONE(0) */
+        if (card->outOwner > OWNER_HFP) {
+            if (pcm_speaker_out) {
+                pcm_close(pcm_speaker_out);
+                pcm_speaker_out = NULL;
+                LOG(ERROR) << __func__ << " standby hfp speaker";
+            }
+            usleep(20000);
+            continue;
+        } else if (card->outOwner == OWNER_HFP) {
+            if (!pcm_speaker_out) {
+                ret = openPcmForDevice(AUDIO_DEVICE_OUT_SPEAKER, PCM_OUT,
+                        &pcm_config_speaker, &pcm_speaker_out);
+                if (ret) {
+                    usleep(5000);
+                    continue;
+                }
+            }
+        } else {
+            card->outOwner = OWNER_HFP;
+            continue;
+        }
         ret = pcm_read(pcm_sco_in, bufferSco, bytesSco);
         if (ret) {
             LOG(ERROR) << __func__ << " pcm read failed: ret: " << ret << " " << pcm_get_error(pcm_sco_in);
@@ -305,16 +354,6 @@ void Bluetooth::startHfp() {
         return;
     }
     pcm_config_sco.period_size = pcm_config_speaker.period_size / ratio;
-
-    ret = openPcmForDevice(AUDIO_DEVICE_OUT_SPEAKER, PCM_OUT,
-                &pcm_config_speaker, &pcm_speaker_out);
-    if (ret)
-        goto error;
-
-    ret = openPcmForDevice(AUDIO_DEVICE_IN_BUILTIN_MIC, PCM_IN,
-                &pcm_config_speaker, &pcm_mic_in);
-    if (ret)
-        goto error;
 
     ret = openPcmForDevice(AUDIO_DEVICE_OUT_BLUETOOTH_SCO, PCM_OUT,
                 &pcm_config_sco, &pcm_sco_out);
