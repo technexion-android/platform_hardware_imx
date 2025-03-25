@@ -114,6 +114,7 @@ void StreamPrimary::tryStart(){
 
 void StreamPrimary::stop() {
     if (mCard) {
+        std::unique_lock lock(mCard->mLock);
         if (mIsInput)
             mCard->inOwner = OWNER_NONE;
         else
@@ -164,6 +165,8 @@ void StreamPrimary::stop() {
         return ::android::NO_INIT;
     }
     bool toStart = false;
+    {
+    std::unique_lock lock(mCard->mLock);
     if (mPrimaryOutput) {
         /* output priority: DIRECT(3) > PRIMARY(2) > HFP(1) > NONE(0) */
         if (mCard->outOwner < OWNER_DIRECT) {
@@ -181,6 +184,7 @@ void StreamPrimary::stop() {
         }
     } else {
         toStart = true;
+    }
     }
     if (toStart)
         tryStart();
@@ -232,6 +236,8 @@ void StreamPrimary::stop() {
     }
 
     bool toStandby = false, toStart = false;
+    {
+    std::unique_lock lock(mCard->mLock);
     if (mPrimaryOutput) {
         /* output priority: DIRECT(3) > PRIMARY(2) > HFP(1) > NONE(0) */
         if (mCard->outOwner > OWNER_PRIMARY) {
@@ -268,6 +274,7 @@ void StreamPrimary::stop() {
         } else {
             mCard->inOwner = OWNER_PRIMARY;
         }
+    }
     }
     if (toStart)
         tryStart();
