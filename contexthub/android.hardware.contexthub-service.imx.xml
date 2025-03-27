@@ -2,9 +2,6 @@
     <hal format="aidl">
         <name>android.hardware.contexthub</name>
         <version>4</version>
-        <interface>
-            <name>IContextHub</name>
-            <instance>default</instance>
-        </interface>
+        <fqname>IContextHub/default</fqname>
     </hal>
 </manifest>
