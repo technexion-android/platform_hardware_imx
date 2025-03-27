@@ -126,6 +126,7 @@ private:
     Mutex mCLLock;
 
     bool mbVIVG2D;
+    OCL_MEMORY_TYPE mOclBufferType;
 
     void* mImxOclCvtModule;
     OCL_HANDLE mHOcl;

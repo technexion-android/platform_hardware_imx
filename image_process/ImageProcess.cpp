@@ -205,7 +205,7 @@ ImageProcess::ImageProcess()
     if (mCLHandle != NULL) {
         ALOGW("opencl g2d device is used!\n");
     }
-
+    mOclBufferType = OCL_MEM_TYPE_GPU;
     memset(path, 0, sizeof(path));
     getModule(path, IMX_OCL_CONVERTER);
     mImxOclCvtModule = dlopen(path, RTLD_NOW);
@@ -230,6 +230,10 @@ ImageProcess::ImageProcess()
             ALOGW("%s: m_ocl_open failed, ret %d", __func__, ret);
         }
         ALOGI("%s: mHOcl %p", __func__, mHOcl);
+        char socType[128] = {0};
+        property_get("ro.boot.soc_type", socType, "");
+        if (!strncmp(socType, "imx9", 4))
+            mOclBufferType = OCL_MEM_TYPE_DEVICE;
     }
 }
 
@@ -1123,16 +1127,32 @@ void ImageProcess::ImxImageBufferToOclBuffer(ImxImageBuffer &imxImgBuf, OCL_BUFF
         return;
     }
 
-    oclBuf.mem_type = OCL_MEM_TYPE_DEVICE;
+    oclBuf.mem_type = mOclBufferType;
     oclBuf.plane_num = plane_info.plane_num;
-
     int offset = 0;
-    for (int i = 0; i < oclBuf.plane_num; i++) {
-        oclBuf.planes[i].fd = imxImgBuf.mFd;
-        oclBuf.planes[i].offset = offset;
-        oclBuf.planes[i].vaddr = (long long)imxImgBuf.mVirtAddr + (long long)offset;
-        oclBuf.planes[i].size = plane_info.plane_size[i];
-        offset += oclBuf.planes[i].size;
+
+    if(mOclBufferType == OCL_MEM_TYPE_GPU){
+
+        for (int i = 0; i < oclBuf.plane_num; i++) {
+            oclBuf.planes[i].paddr = (long long)imxImgBuf.mPhyAddr + (long long)offset;
+            oclBuf.planes[i].size = plane_info.plane_size[i];
+            offset += oclBuf.planes[i].size;
+        }
+    }else if(mOclBufferType == OCL_MEM_TYPE_DEVICE) {
+
+        for (int i = 0; i < oclBuf.plane_num; i++) {
+            oclBuf.planes[i].fd = (long long)imxImgBuf.mFd;
+            oclBuf.planes[i].offset = (long long)offset;
+            oclBuf.planes[i].size = plane_info.plane_size[i] + offset;
+            offset += oclBuf.planes[i].size;
+        }
+    }else{
+
+        for (int i = 0; i < oclBuf.plane_num; i++) {
+            oclBuf.planes[i].vaddr = (long long)imxImgBuf.mVirtAddr + offset;
+            oclBuf.planes[i].size = plane_info.plane_size[i];
+            offset += oclBuf.planes[i].size;
+        }
     }
 
     return;
@@ -1147,6 +1167,9 @@ static void HalPixelFormatToOclPixelFormat(uint32_t &halPixelFormat,
             break;
         case HAL_PIXEL_FORMAT_YCbCr_422_I:
             oclPixelFormat = OCL_FORMAT_YUYV;
+            break;
+        case HAL_PIXEL_FORMAT_YCbCr_422_SP:
+            oclPixelFormat = OCL_FORMAT_NV16;
             break;
         default:
             ALOGW("==xx %s: unsupported halPixelFormat %d, set oclPixelFormat to OCL_FORMAT_YUYV",
