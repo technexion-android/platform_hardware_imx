@@ -33,12 +33,16 @@ private:
     int32_t processAeMode(uint8_t mode);
     int32_t processExposureGain(int32_t compare_type);
     int32_t processExposureTime(int64_t exposureTime);
+    int32_t enableAF(uint8_t mode);
+    int32_t processFocusDistance(float focusDistance);
 
 private:
     int32_t m_fd = -1;
     uint8_t m_lastAwbMode;
     uint8_t m_lastAeMode;
     int64_t m_lastExposureTime;
+    uint8_t m_lastAfMode;
+    float m_lastFocusDistance;
 };
 
 } // namespace android

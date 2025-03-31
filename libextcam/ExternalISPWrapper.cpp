@@ -32,8 +32,10 @@ ExternalISPWrapper::ExternalISPWrapper(int32_t fd) : m_fd(fd) {
     // Set ISP feature to it's default value.
     m_lastAwbMode = ANDROID_CONTROL_AWB_MODE_OFF;
     m_lastAeMode = ANDROID_CONTROL_AE_MODE_OFF;
+    m_lastAfMode = ANDROID_CONTROL_AF_MODE_OFF;
 
     m_lastExposureTime = 0;
+    m_lastFocusDistance = 0.0f;
 }
 
 ExternalISPWrapper::~ExternalISPWrapper() {}
@@ -225,6 +227,74 @@ int32_t ExternalISPWrapper::processExposureTime(int64_t exposureTime) {
     return 0;
 }
 
+int32_t ExternalISPWrapper::enableAF(uint8_t mode) {
+    int32_t ret = 0;
+
+    ALOGV("%s, mode %d, m_lastAfMode %d", __func__, mode, m_lastAfMode);
+    if (mode == m_lastAfMode)
+        return 0;
+
+    bool autoFocusMode = false;
+    switch (mode) {
+        case ANDROID_CONTROL_AF_MODE_OFF:
+            autoFocusMode = false;
+            ALOGI("%s, Auto focus mode set to manual", __func__);
+            break;
+        case ANDROID_CONTROL_AF_MODE_AUTO:
+        case ANDROID_CONTROL_AF_MODE_CONTINUOUS_VIDEO:
+        case ANDROID_CONTROL_AF_MODE_CONTINUOUS_PICTURE:
+            autoFocusMode = true;
+            ALOGI("%s, Manual focus mode set to auto %d", __func__, mode);
+            break;
+        default:
+            ALOGW("%s, Unsupported focus mode: %d", __func__, mode);
+            return -1;
+    }
+
+    ret = setV4L2ControlValue(m_fd, V4L2_CID_FOCUS_AUTO, autoFocusMode);
+    if (ret != 0) {
+        ALOGE("%s, Failed to set focue mode %d", __func__, mode);
+        return -1;
+    }
+    m_lastAfMode = mode;
+
+    return 0;
+}
+
+int32_t ExternalISPWrapper::processFocusDistance(float focusDistance) {
+    int32_t ret = 0;
+    int32_t value = INT32_MAX;
+
+    if (focusDistance == m_lastFocusDistance)
+        return 0;
+
+    v4l2_queryctrl queryctrl;
+    ret = queryV4L2Control(m_fd, V4L2_CID_FOCUS_ABSOLUTE, queryctrl);
+    if (ret == 0) {
+        (void)getV4L2ControlValue(m_fd, V4L2_CID_FOCUS_ABSOLUTE, value);
+    } else {
+        return -1;
+    }
+
+    // (0.0f ~ 10.0f) maps to [0 255], step 5.
+    int32_t focusAbsolute = static_cast<int>(
+            (focusDistance / 10.0f) * (queryctrl.maximum - queryctrl.minimum) + queryctrl.minimum);
+    if (focusAbsolute % queryctrl.step != 0) {
+        focusAbsolute = focusAbsolute / queryctrl.step * queryctrl.step;
+    }
+
+    ret = setV4L2ControlValue(m_fd, V4L2_CID_FOCUS_ABSOLUTE, focusAbsolute);
+    if (ret != 0) {
+        ALOGE("%s, Failed to set focusAbsolute %d", __func__, focusAbsolute);
+        return -1;
+    }
+    ALOGI("%s: Setting focusDistance from %f to %f, focusAbsolute: %d", __func__,
+          m_lastFocusDistance, focusDistance, focusAbsolute);
+    m_lastFocusDistance = focusDistance;
+
+    return 0;
+}
+
 // Current tactic: don't return if some meta process failed,
 // since may have other meta to process.
 int32_t ExternalISPWrapper::process(CameraMetadata& meta) {
@@ -249,6 +319,18 @@ int32_t ExternalISPWrapper::process(CameraMetadata& meta) {
     entry = meta.find(ANDROID_SENSOR_EXPOSURE_TIME);
     if (entry.count > 0) {
         (void)processExposureTime(entry.data.i64[0]);
+    }
+
+    // AF
+    entry = meta.find(ANDROID_CONTROL_AF_MODE);
+    if (entry.count > 0) {
+        (void)enableAF(entry.data.u8[0]);
+    }
+
+    // Focus Distance
+    entry = meta.find(ANDROID_LENS_FOCUS_DISTANCE);
+    if (entry.count > 0) {
+        (void)processFocusDistance(entry.data.f[0]);
     }
 
     return 0;
