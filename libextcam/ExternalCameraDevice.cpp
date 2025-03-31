@@ -443,6 +443,9 @@ status_t ExternalCameraDevice::initDefaultCharsKeys(
     const uint8_t facing = ANDROID_LENS_FACING_EXTERNAL;
     UPDATE(ANDROID_LENS_FACING, &facing, 1);
 
+    const float focusDistance = 0.0f;
+    UPDATE(ANDROID_LENS_FOCUS_DISTANCE, &focusDistance, 1);
+
     // android.noiseReduction
     const uint8_t noiseReductionMode = ANDROID_NOISE_REDUCTION_MODE_OFF;
     UPDATE(ANDROID_NOISE_REDUCTION_AVAILABLE_NOISE_REDUCTION_MODES, &noiseReductionMode, 1);
@@ -548,6 +551,7 @@ status_t ExternalCameraDevice::initDefaultCharsKeys(
                                             ANDROID_JPEG_THUMBNAIL_QUALITY,
                                             ANDROID_JPEG_THUMBNAIL_SIZE,
                                             ANDROID_LENS_OPTICAL_STABILIZATION_MODE,
+                                            ANDROID_LENS_FOCUS_DISTANCE,
                                             ANDROID_NOISE_REDUCTION_MODE,
                                             ANDROID_SCALER_CROP_REGION,
                                             ANDROID_SENSOR_TEST_PATTERN_MODE,
@@ -619,7 +623,9 @@ status_t ExternalCameraDevice::initCameraControlsCharsKeys(
            ARRAY_SIZE(controlAeCompensationStep));
 
     // TODO: Check V4L2_CID_AUTO_FOCUS_*.
-    const uint8_t afAvailableModes[] = {ANDROID_CONTROL_AF_MODE_AUTO, ANDROID_CONTROL_AF_MODE_OFF};
+    const uint8_t afAvailableModes[] = {ANDROID_CONTROL_AF_MODE_AUTO, ANDROID_CONTROL_AF_MODE_OFF,
+                                        ANDROID_CONTROL_AF_MODE_CONTINUOUS_VIDEO,
+                                        ANDROID_CONTROL_AF_MODE_CONTINUOUS_PICTURE};
     UPDATE(ANDROID_CONTROL_AF_AVAILABLE_MODES, afAvailableModes, ARRAY_SIZE(afAvailableModes));
 
     // TODO: V4L2_CID_SCENE_MODE
