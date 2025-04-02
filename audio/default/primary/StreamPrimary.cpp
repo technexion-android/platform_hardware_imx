@@ -39,6 +39,7 @@ extern "C" {
 #define DEFAULT_PERIOD_SIZE 1024
 #define DEFAULT_PERIOD_COUNT 4
 #define DEFAULT_INPUT_RATE 48000
+#define DEFAULT_INPUT_CHANNELS 2
 #define LPA_PERIOD_MS 500
 #define LPA_BUFFER_SECOND 20
 
@@ -192,6 +193,7 @@ void StreamPrimary::stop() {
     if (mIsInput && !mStarted && mConfig->rate != DEFAULT_INPUT_RATE) {
         auto requested_rate = mConfig->rate;
         mConfig->rate = DEFAULT_INPUT_RATE;
+        mConfig->channels = DEFAULT_INPUT_CHANNELS;
         tryStart();
         if (mStarted) {
             int ret = create_resampler(
@@ -203,7 +205,7 @@ void StreamPrimary::stop() {
                 LOG(ERROR) << "Resampler initialization failed! Error code " << ret;
                 return ::android::NO_INIT;
             }
-            mResamplerBuffer = (int16_t *)malloc(mBufferSizeFrames * mFrameSizeBytes);
+            mResamplerBuffer = (int16_t *)malloc(mBufferSizeFrames * mFrameSizeBytes * DEFAULT_INPUT_CHANNELS);
             if (!mResamplerBuffer) {
                 LOG(ERROR) << "Resampler buffer initialization failed!";
                 if (mResampler) {
@@ -369,13 +371,20 @@ void StreamPrimary::stop() {
     }
 
     if (mResampler) {
-        StreamAlsa::transfer(mResamplerBuffer, frameCount, actualFrameCount, latencyMs);
+        int ratio = 1;
+        if (mSavedConfig->channels == 1)
+            ratio = 2;
+        StreamAlsa::transfer(mResamplerBuffer, frameCount * ratio, actualFrameCount, latencyMs);
+        *actualFrameCount /= ratio;
         size_t in_frame_count = *actualFrameCount;
         size_t out_frame_count = *actualFrameCount;
         mResampler->resample_from_input(mResampler,
                 (int16_t *)mResamplerBuffer, &in_frame_count,
                 (int16_t *)buffer, &out_frame_count);
         *actualFrameCount = out_frame_count;
+        if (mSavedConfig->channels == 1) {
+            downmix_to_mono_i16_from_stereo_i16((int16_t*)buffer, (const int16_t*)buffer, out_frame_count);
+        }
         return ::android::OK;
     }
 
