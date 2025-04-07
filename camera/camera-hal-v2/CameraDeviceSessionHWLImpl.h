@@ -339,6 +339,8 @@ private:
     uint32_t mOmitFrmCount;
 
     char mSocType[128];
+    uint32_t maxStreamWidth = 0;
+    uint32_t maxStreamHeight = 0;
 
 public:
     int32_t m_raw_v4l2_format = -1;

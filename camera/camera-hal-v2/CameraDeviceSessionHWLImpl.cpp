@@ -568,6 +568,10 @@ void CameraDeviceSessionHwlImpl::CleanFrameBuffersLocked() {
 
 status_t CameraDeviceSessionHwlImpl::ConfigLibcameraLocked(uint32_t bufferNum, uint32_t format,
                                                            uint32_t width, uint32_t height) {
+    // already configured
+    if (mLibCameraStream)
+        return 0;
+
     int ret = 0;
     std::set<libcamera::Stream *> libCameraStreamSet;
     libcamera::StreamConfiguration cfg;
@@ -799,11 +803,8 @@ status_t CameraDeviceSessionHwlImpl::ConfigurePipeline(
     pipeline_info->pipeline_callback = std::move(hwl_pipeline_callback);
 
     int ret = 0;
-    std::set<libcamera::Stream *> libCameraStreamSet;
-    libcamera::StreamConfiguration cfg;
-    std::unique_ptr<libcamera::CameraConfiguration> camCfg;
-    uint32_t maxStreamWidth = 0;
-    uint32_t maxStreamHeight = 0;
+    maxStreamWidth = 0;
+    maxStreamHeight = 0;
 
     int stream_num = request_config.streams.size();
     if (stream_num == 0) {
@@ -926,26 +927,6 @@ status_t CameraDeviceSessionHwlImpl::ConfigurePipeline(
         hal_stream.physical_camera_id = stream.physical_camera_id;
 
         pipeline_info->hal_streams->push_back(std::move(hal_stream));
-    }
-
-    if (m_bConfigLibcameraByIntent == false) {
-        // imx95 fixed use sensor size to config libcamera.
-        uint32_t configWidth = mMaxWidth;
-        uint32_t configHeight = mMaxHeight;
-
-        if (strstr(mSensorData.camera_name, "ov5640")) {
-            configWidth = maxStreamWidth;
-            configHeight = maxStreamHeight;
-        }
-
-        ret = ConfigLibcameraLocked(mSensorData.mLibcameraBuffers, m_libcamera_stream_format,
-                                    configWidth, configHeight);
-        if (ret) {
-            ALOGE("%s: ConfigLibcameraLocked failed, ret %d, buffers %d, foramt 0x%x, width %d, height %d",
-                  __func__, ret, mSensorData.mLibcameraBuffers, m_libcamera_stream_format,
-                  configWidth, configHeight);
-            goto err_out;
-        }
     }
 
     ALOGI("%s: pipeline_id_ %d, info %p, map_pipeline_info %p, this %p", __func__, pipeline_id_,
@@ -1352,6 +1333,9 @@ status_t CameraDeviceSessionHwlImpl::SubmitRequests(uint32_t frame_number,
     property_get("vendor.rw.camera.test", value, "");
     mDebug = (strcmp(value, "debug") == 0) ? true : false;
 
+    if (mDebug)
+        ALOGI("%s: frame_number %u", __func__, frame_number);
+
     int ret = 0;
 
     // Although m_bConfigLibcameraByIntent is hard code to false,
@@ -1360,6 +1344,24 @@ status_t CameraDeviceSessionHwlImpl::SubmitRequests(uint32_t frame_number,
         ret = PickAndConfigLibcamera(requests);
         if (ret) {
             ALOGE("%s: PickAndConfigLibcamera failed, ret %d", __func__, ret);
+            return ret;
+        }
+    } else {
+        // imx95 fixed use sensor size to config libcamera.
+        uint32_t configWidth = mMaxWidth;
+        uint32_t configHeight = mMaxHeight;
+
+        if (strstr(mSensorData.camera_name, "ov5640")) {
+            configWidth = maxStreamWidth;
+            configHeight = maxStreamHeight;
+        }
+
+        ret = ConfigLibcameraLocked(mSensorData.mLibcameraBuffers, m_libcamera_stream_format,
+                                    configWidth, configHeight);
+        if (ret) {
+            ALOGE("%s: ConfigLibcameraLocked failed, ret %d, buffers %d, foramt 0x%x, width %d, height %d",
+                  __func__, ret, mSensorData.mLibcameraBuffers, m_libcamera_stream_format,
+                  configWidth, configHeight);
             return ret;
         }
     }
