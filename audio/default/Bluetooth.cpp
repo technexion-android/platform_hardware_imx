@@ -174,8 +174,6 @@ void *Bluetooth::uplink_task_impl()
     size_t frameCount = pcm_config_speaker.period_size;
     size_t bytesMic = pcm_config_speaker.period_size * PCM_CONFIG_SPEAKER_PERIOD_BYTES;
     size_t bytesSco = pcm_frames_to_bytes(pcm_sco_out, pcm_config_sco.period_size);
-    void *bufferMic = malloc(bytesMic);
-    void *bufferSco = malloc(bytesSco);
     size_t inFrameCount = 0;
     size_t outFrameCount = 0;
 
@@ -185,11 +183,13 @@ void *Bluetooth::uplink_task_impl()
         return NULL;
     }
 
+    void *bufferMic = malloc(bytesMic);
     if (!bufferMic) {
         LOG(ERROR) << __func__ << "Failed to alloc " << bytesMic << " bytes";
         return NULL;
     }
 
+    void *bufferSco = malloc(bytesSco);
     if (!bufferSco) {
         LOG(ERROR) << __func__ << "Failed to alloc " << bytesSco << " bytes";
         free(bufferMic);
@@ -262,8 +262,6 @@ void *Bluetooth::downlink_task_impl()
     size_t frameCount = pcm_config_sco.period_size;
     size_t bytesSpeaker = pcm_config_speaker.period_size * PCM_CONFIG_SPEAKER_PERIOD_BYTES;
     size_t bytesSco = pcm_frames_to_bytes(pcm_sco_in, pcm_config_sco.period_size);
-    void *bufferSpeaker = malloc(bytesSpeaker);
-    void *bufferSco = malloc(bytesSco);
     size_t inFrameCount = 0;
     size_t outFrameCount = 0;
 
@@ -273,11 +271,13 @@ void *Bluetooth::downlink_task_impl()
         return NULL;
     }
 
+    void *bufferSpeaker = malloc(bytesSpeaker);
     if (!bufferSpeaker) {
         LOG(ERROR) << __func__ << "Failed to alloc " << bytesSpeaker << " bytes";
         return NULL;
     }
 
+    void *bufferSco = malloc(bytesSco);
     if (!bufferSco) {
         LOG(ERROR) << __func__ << "Failed to alloc " << bytesSco << " bytes";
         free(bufferSpeaker);
