@@ -1,5 +1,6 @@
 /*
  * Copyright 2022 The Android Open Source Project
+ * Copyright 2024-2025 NXP
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,21 +21,18 @@
 
 #include <cutils/properties.h>
 #include <fcntl.h>
+#include <hidl/HidlSupport.h>
+#include <hidl/HidlTransportSupport.h>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <poll.h>
 #include <string.h>
 #include <sys/uio.h>
 #include <termios.h>
-#include <hidl/HidlSupport.h>
-#include <hidl/HidlTransportSupport.h>
+
 #include <iostream>
 
 #include "log/log.h"
-
-// TODO: Remove custom logging defines from PDL packets.
-#undef LOG_INFO
-#undef LOG_DEBUG
 #include "vendor_interface.h"
 
 namespace {
@@ -204,14 +202,13 @@ void BluetoothHci::reset() {
 
 ndk::ScopedAStatus BluetoothHci::initialize(
     const std::shared_ptr<IBluetoothHciCallbacks>& cb) {
-  ALOGI(__func__);
-  ALOGD("foo:****AIDL Test***** %s",__func__);
+  ALOGI("Initializing Bluetooth HCI via AIDL");
 
   if (cb == nullptr) {
     ALOGE("cb == nullptr! -> Unable to call initializationComplete(ERR)");
     return ndk::ScopedAStatus::fromServiceSpecificError(STATUS_BAD_VALUE);
   }
-  ALOGD("%s line %d mstat %d",__func__, __LINE__, mState);
+
   HalState old_state = HalState::READY;
   {
     std::lock_guard<std::mutex> guard(mStateMutex);
@@ -221,20 +218,20 @@ ndk::ScopedAStatus BluetoothHci::initialize(
       mState = HalState::INITIALIZING;
     }
   }
-  ALOGD("%s line %d old_state %d",__func__, __LINE__, old_state);
+
   if (old_state != HalState::READY) {
     ALOGE("initialize: Unexpected State %d", static_cast<int>(old_state));
     close();
     cb->initializationComplete(Status::ALREADY_INITIALIZED);
     return ndk::ScopedAStatus::ok();
   }
- 
+
   bool rc = VendorInterface::Initialize(
       [cb](bool status) {
         cb->initializationComplete(
             status ? Status::SUCCESS : Status::HARDWARE_INITIALIZATION_ERROR);
       },
-      [](const std::vector<uint8_t>& ) {
+      [](const std::vector<uint8_t>&) {
         LOG_ALWAYS_FATAL("Unexpected command!");
       },
       [cb](const std::vector<uint8_t>& raw_acl) {
@@ -252,10 +249,9 @@ ndk::ScopedAStatus BluetoothHci::initialize(
       [this]() {
         ALOGI("HCI socket device disconnected");
         mFdWatcher.StopWatchingFileDescriptors();
-      }
-  );
-  if(!rc ){
-    ALOGE("new AIDL init vendor failed");
+      });
+  if (!rc) {
+    ALOGE("VendorInterface::Initialize failed");
     return ndk::ScopedAStatus::fromServiceSpecificError(STATUS_BAD_VALUE);
   }
 
@@ -265,13 +261,13 @@ ndk::ScopedAStatus BluetoothHci::initialize(
     mState = HalState::ONE_CLIENT;
   }
 
-  ALOGD(" %s line %d mstat %d",__func__, __LINE__, mState);
-  ALOGE(" %s: line %d initialized success", __func__, __LINE__);
+  ALOGI("%s:Bluetooth HCI initialized successfully, state = %d", __func__,
+        static_cast<int>(mState));
   return ndk::ScopedAStatus::ok();
 }
 
 ndk::ScopedAStatus BluetoothHci::close() {
-  ALOGI(__func__);
+  ALOGI("%s:Bluetooth HCI close sequence initiated via AIDL", __func__);
   {
     std::lock_guard<std::mutex> guard(mStateMutex);
     if (mState != HalState::ONE_CLIENT) {
@@ -280,13 +276,13 @@ ndk::ScopedAStatus BluetoothHci::close() {
     }
     mState = HalState::CLOSING;
   }
-  ALOGD(" %s line %d mstat %d",__func__, __LINE__, mState);
+  ALOGI("%s: HalState set moving to CLOSING", __func__);
   VendorInterface::Shutdown();
   {
     std::lock_guard<std::mutex> guard(mStateMutex);
     mState = HalState::READY;
   }
-  ALOGD(" %s line %d mstat %d",__func__, __LINE__, mState);
+  ALOGI("%s: Shutdown complete, HalState moving to READY", __func__);
   return ndk::ScopedAStatus::ok();
 }
 
@@ -311,7 +307,7 @@ ndk::ScopedAStatus BluetoothHci::sendIsoData(
 }
 
 ndk::ScopedAStatus BluetoothHci::send(PacketType type,
-    const std::vector<uint8_t>& data) {
+                                      const std::vector<uint8_t>& data) {
   VendorInterface::get()->Send(type, data.data(), data.size());
   return ndk::ScopedAStatus::ok();
 }

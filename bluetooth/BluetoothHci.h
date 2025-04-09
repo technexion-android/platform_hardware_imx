@@ -1,5 +1,6 @@
 /*
  * Copyright 2022 The Android Open Source Project
+ * Copyright 2024-2025 NXP
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,7 +25,6 @@
 
 #include "async_fd_watcher.h"
 #include "h4_protocol.h"
-#include "net_bluetooth_mgmt.h"
 
 namespace aidl::android::hardware::bluetooth::impl {
 
@@ -68,8 +68,7 @@ class BluetoothHci : public BnBluetoothHci {
   int getFdFromDevPath();
   [[nodiscard]] ndk::ScopedAStatus send(
       ::android::hardware::bluetooth::hci::PacketType type,
-            const std::vector<uint8_t>& packet);
-  std::unique_ptr<NetBluetoothMgmt> management_{};
+      const std::vector<uint8_t>& packet);
 
   // Send a reset command and discard all packets until a reset is received.
   void reset();
