@@ -189,6 +189,8 @@ ndk::ScopedAStatus Power::setBoost(Boost type, int32_t durationMs) {
                 mHintManager->DoHint("INTERACTION", std::chrono::seconds(1));
             }
             break;
+        case Boost::DISPLAY_UPDATE_IMMINENT:
+            [[fallthrough]];
         case Boost::ML_ACC:
             [[fallthrough]];
         case Boost::AUDIO_LAUNCH:
