@@ -66,7 +66,8 @@ struct audio_card* AudioCardManager::getCardForDevice(const ::aidl::android::med
 
     if (audioDevice.type.type == AudioDeviceType::OUT_BUS) {
         LOG(INFO) << __func__ << ": BUS : " << audioDevice.toString();
-        bus_name = ::android::internal::ToString(deviceAddress.get<AudioDeviceAddress::Tag::id>()).c_str();
+        std::string idStr = ::android::internal::ToString(deviceAddress.get<AudioDeviceAddress::Tag::id>());
+        bus_name = idStr.c_str();
         card = getCardForBus(bus_name);
     } else {
         LOG(INFO) << __func__ << ": DEVICE: " << audioDevice.toString();
