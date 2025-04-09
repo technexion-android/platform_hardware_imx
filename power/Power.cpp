@@ -29,6 +29,8 @@
 
 #include <mutex>
 
+#define BOOSTWIDEVINE 0xff
+
 namespace aidl {
 namespace android {
 namespace hardware {
@@ -205,12 +207,18 @@ ndk::ScopedAStatus Power::setBoost(Boost type, int32_t durationMs) {
             if (mSustainedPerfModeOn) {
                 break;
             }
+            std::string strType;
+            if (static_cast<int>(type) == BOOSTWIDEVINE)
+                strType = "BOOSTWIDEVINE";
+            else
+                strType = toString(type);
+
             if (durationMs > 0) {
-                mHintManager->DoHint(toString(type), std::chrono::milliseconds(durationMs));
+                mHintManager->DoHint(strType, std::chrono::milliseconds(durationMs));
             } else if (durationMs == 0) {
-                mHintManager->DoHint(toString(type));
+                mHintManager->DoHint(strType);
             } else {
-                mHintManager->EndHint(toString(type));
+                mHintManager->EndHint(strType);
             }
             break;
     }
