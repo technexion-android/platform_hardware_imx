@@ -233,6 +233,7 @@ void StreamPrimary::stop() {
 
 ::android::status_t StreamPrimary::transfer(void* buffer, size_t frameCount,
                                             size_t* actualFrameCount, int32_t* latencyMs) {
+    LOG(VERBOSE) << __func__ << ": start transfer: " << frameCount;
     if (isStubStreamOnWorker()) {
         return mStubDriver.transfer(buffer, frameCount, actualFrameCount, latencyMs);
     }
@@ -385,7 +386,7 @@ void StreamPrimary::stop() {
         if (mSavedConfig->channels == 1) {
             downmix_to_mono_i16_from_stereo_i16((int16_t*)buffer, (const int16_t*)buffer, out_frame_count);
         }
-        return ::android::OK;
+        goto done;
     }
 
     RETURN_STATUS_IF_ERROR(
@@ -394,6 +395,7 @@ void StreamPrimary::stop() {
 done:
     if (mDump && mIsInput)
         dump(buffer, frameCount * mFrameSizeBytes, kDumpPrimaryInputFile);
+    LOG(VERBOSE) << __func__ << ": end transfer: " << *actualFrameCount;
     return ::android::OK;
 }
 
