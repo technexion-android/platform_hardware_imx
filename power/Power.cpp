@@ -162,7 +162,6 @@ ndk::ScopedAStatus Power::setBoost(Boost type, int32_t durationMs) {
     LOG(DEBUG) << "Power setBoost: " << toString(type) << " duration: " << durationMs;
     ATRACE_INT(toString(type).c_str(), durationMs);
     switch (type) {
-        case Boost::DISPLAY_UPDATE_IMMINENT:
         case Boost::INTERACTION:
             if (mSustainedPerfModeOn) {
                 break;
@@ -187,10 +186,7 @@ ndk::ScopedAStatus Power::setBoost(Boost type, int32_t durationMs) {
                 s_previous_boost_timespec = cur_boost_timespec;
                 s_previous_duration = duration;
 
-                if (type == Boost::INTERACTION)
-                    mHintManager->DoHint("INTERACTION", std::chrono::seconds(1));
-                else
-                    mHintManager->DoHint("DISPLAY_UPDATE_IMMINENT", std::chrono::seconds(1));
+                mHintManager->DoHint("INTERACTION", std::chrono::seconds(1));
             }
             break;
         case Boost::DISPLAY_UPDATE_IMMINENT:
