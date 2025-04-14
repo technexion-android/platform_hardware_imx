@@ -81,6 +81,7 @@ cc_library_shared {
 
 cc_binary {
     name: "ImageTest",
+    defaults: ["imx_image_process_defaults"],
     vendor: true,
 
     srcs: [
