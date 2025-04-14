@@ -1165,13 +1165,13 @@ static void ImxImageBufferToOclFormat(ImxImageBuffer &imxImgBuf, OCL_FORMAT &ocl
 
     oclFormat.format = oclPixelFormat;
     oclFormat.width = imxImgBuf.mWidth;
-    oclFormat.height = imxImgBuf.mHeight;
+    oclFormat.height = imxImgBuf.mHeightSpan;
     oclFormat.stride = imxImgBuf.mStride;
-    oclFormat.sliceheight = imxImgBuf.mHeight;
+    oclFormat.sliceheight = imxImgBuf.mHeightSpan;
     oclFormat.left = 0;
     oclFormat.top = 0;
     oclFormat.right = imxImgBuf.mWidth;
-    oclFormat.bottom = imxImgBuf.mHeight;
+    oclFormat.bottom = imxImgBuf.mHeightSpan;
     oclFormat.colorspace = OCL_COLORSPACE_BT709;
 
     return;
