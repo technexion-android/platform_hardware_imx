@@ -623,9 +623,7 @@ status_t ExternalCameraDevice::initCameraControlsCharsKeys(
            ARRAY_SIZE(controlAeCompensationStep));
 
     // TODO: Check V4L2_CID_AUTO_FOCUS_*.
-    const uint8_t afAvailableModes[] = {ANDROID_CONTROL_AF_MODE_AUTO, ANDROID_CONTROL_AF_MODE_OFF,
-                                        ANDROID_CONTROL_AF_MODE_CONTINUOUS_VIDEO,
-                                        ANDROID_CONTROL_AF_MODE_CONTINUOUS_PICTURE};
+    const uint8_t afAvailableModes[] = {ANDROID_CONTROL_AF_MODE_AUTO, ANDROID_CONTROL_AF_MODE_OFF};
     UPDATE(ANDROID_CONTROL_AF_AVAILABLE_MODES, afAvailableModes, ARRAY_SIZE(afAvailableModes));
 
     // TODO: V4L2_CID_SCENE_MODE
@@ -633,9 +631,9 @@ status_t ExternalCameraDevice::initCameraControlsCharsKeys(
     UPDATE(ANDROID_CONTROL_AVAILABLE_SCENE_MODES, &availableSceneMode, 1);
 
     // TODO: V4L2_CID_3A_LOCK
-    const uint8_t aeLockAvailable = ANDROID_CONTROL_AE_LOCK_AVAILABLE_TRUE;
+    const uint8_t aeLockAvailable = ANDROID_CONTROL_AE_LOCK_AVAILABLE_FALSE;
     UPDATE(ANDROID_CONTROL_AE_LOCK_AVAILABLE, &aeLockAvailable, 1);
-    const uint8_t awbLockAvailable = ANDROID_CONTROL_AWB_LOCK_AVAILABLE_TRUE;
+    const uint8_t awbLockAvailable = ANDROID_CONTROL_AWB_LOCK_AVAILABLE_FALSE;
     UPDATE(ANDROID_CONTROL_AWB_LOCK_AVAILABLE, &awbLockAvailable, 1);
 
     // TODO: V4L2_CID_ZOOM_*
