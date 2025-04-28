@@ -115,6 +115,7 @@ static const struct planar_layout *layout_from_format(uint32_t format) {
             return &packed_2bpp_layout;
 
         case DRM_FORMAT_YVU420:
+        case DRM_FORMAT_YUV420:
             return &triplanar_yuv_420_layout;
 
         case DRM_FORMAT_NV12:
