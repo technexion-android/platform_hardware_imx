@@ -253,6 +253,7 @@ private:
     std::unique_ptr<ComposerResources> mResources;
 
     std::vector<Capability> mCapabilities;
+    bool mBatchCommandSupported = false;
 };
 
 } // namespace aidl::android::hardware::graphics::composer3::impl
