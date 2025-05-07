@@ -627,7 +627,11 @@ enum g2d_format DeviceComposer::convertFormat(uint32_t format, G2dBuffer& buff) 
             halFormat = G2D_NV21;
             break;
         case DRM_FORMAT_NV12:
+#ifdef FORMAT_WORKAROUND_FOR_PXP
+            halFormat = G2D_NV21;
+#else
             halFormat = G2D_NV12;
+#endif
             break;
         case DRM_FORMAT_YUV420:
             halFormat = G2D_I420;
