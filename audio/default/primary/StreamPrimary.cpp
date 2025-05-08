@@ -68,13 +68,12 @@ StreamPrimary::StreamPrimary(StreamContext* context, const Metadata& metadata)
     auto flags = getContext().getFlags();
     if (flags.getTag() == AudioIoFlags::Tag::output) {
         if (isBitPositionFlagSet(flags.template get<AudioIoFlags::Tag::output>(),
-                               AudioOutputFlags::PRIMARY)) {
-            mPrimaryOutput = true;
-            mDirectOutput = false;
-        } else if (isBitPositionFlagSet(flags.template get<AudioIoFlags::Tag::output>(),
                                AudioOutputFlags::DIRECT)) {
             mPrimaryOutput = false;
             mDirectOutput = true;
+        } else {
+            mPrimaryOutput = true;
+            mDirectOutput = false;
         }
     }
     ALOGD("%s: mPrimaryOutput: %d, mDirectOutput: %d", __func__, mPrimaryOutput, mDirectOutput);
@@ -118,7 +117,9 @@ void StreamPrimary::stop() {
         std::unique_lock lock(mCard->mLock);
         if (mIsInput)
             mCard->inOwner = OWNER_NONE;
-        else
+        else if (mPrimaryOutput && mCard->outOwner == OWNER_PRIMARY)
+            mCard->outOwner = OWNER_NONE;
+        else if (mDirectOutput && mCard->outOwner == OWNER_DIRECT)
             mCard->outOwner = OWNER_NONE;
     }
     mStarted = false;
