@@ -95,8 +95,24 @@ ndk::ScopedAStatus ModulePrimary::populateConnectedDevicePort(
         return ndk::ScopedAStatus::fromExceptionCode(EX_ILLEGAL_STATE);
 
     if (audioDevice.type.type == ::aidl::android::media::audio::common::AudioDeviceType::OUT_DEVICE &&
-            audioDevice.type.connection == "hdmi")
+            audioDevice.type.connection == ::aidl::android::media::audio::common::AudioDeviceDescription::CONNECTION_HDMI) {
+        struct mixer_ctl *ctl = NULL;
+        struct mixer *mixer;
+
+        mixer = mixer_open(c->card);
+        if (mixer) {
+            ctl = mixer_get_ctl_by_name(mixer, "HDMI Jack");
+            if (ctl) {
+                /* If HDMI is connected, return ok */
+                if (mixer_ctl_get_value(ctl, 0)) {
+                    mixer_close(mixer);
+                    return ndk::ScopedAStatus::ok();
+                }
+            }
+            mixer_close(mixer);
+        }
         return ndk::ScopedAStatus::fromExceptionCode(EX_ILLEGAL_STATE);
+    }
 
     return ndk::ScopedAStatus::ok();
 }
