@@ -246,6 +246,9 @@ void *Bluetooth::uplink_task_impl()
 
     free(bufferMic);
     free(bufferSco);
+    if (card->inOwner == OWNER_HFP) {
+        card->inOwner = OWNER_NONE;
+    }
     LOG(INFO) << __func__ << " stop";
     return NULL;
 }
@@ -341,6 +344,9 @@ void *Bluetooth::downlink_task_impl()
 
     free(bufferSpeaker);
     free(bufferSco);
+    if (card->outOwner == OWNER_HFP) {
+        card->outOwner = OWNER_NONE;
+    }
     LOG(INFO) << __func__ << " stop";
     return NULL;
 }
