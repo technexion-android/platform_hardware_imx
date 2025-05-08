@@ -1322,7 +1322,8 @@ ndk::ScopedAStatus Module::setAudioPortConfigImpl(
         const AudioDevice audioDevice =
                 out_suggested->ext.get<AudioPortExt::Tag::device>().device;
 
-        if (audioDevice.type.type == AudioDeviceType::OUT_BUS) {
+        if (audioDevice.type.type == AudioDeviceType::OUT_BUS &&
+                audioDevice.type.connection != ::aidl::android::media::audio::common::AudioDeviceDescription::CONNECTION_HDMI) {
             mCard = AudioCardManager::getCardForDevice(audioDevice);
             if (mCard) {
                 struct mixer_ctl *ctl = NULL;
