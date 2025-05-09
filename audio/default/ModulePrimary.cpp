@@ -101,13 +101,18 @@ ndk::ScopedAStatus ModulePrimary::populateConnectedDevicePort(
 
         mixer = mixer_open(c->card);
         if (mixer) {
-            ctl = mixer_get_ctl_by_name(mixer, "HDMI Jack");
-            if (ctl) {
-                /* If HDMI is connected, return ok */
-                if (mixer_ctl_get_value(ctl, 0)) {
-                    mixer_close(mixer);
-                    return ndk::ScopedAStatus::ok();
+            int retry = 0;
+            while (retry++ <= 10) {
+                ctl = mixer_get_ctl_by_name(mixer, "HDMI Jack");
+                if (ctl) {
+                    /* If HDMI is connected, return ok */
+                    if (mixer_ctl_get_value(ctl, 0) == 1) {
+                        mixer_close(mixer);
+                        return ndk::ScopedAStatus::ok();
+                    }
                 }
+                usleep(200000);
+                LOG(INFO) << __func__ << ": detect HDMI connection, retry " << retry;
             }
             mixer_close(mixer);
         }
