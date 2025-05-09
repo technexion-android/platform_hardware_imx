@@ -65,7 +65,7 @@ struct audio_card* AudioCardManager::getCardForDevice(const ::aidl::android::med
     const ::aidl::android::media::audio::common::AudioDeviceAddress& deviceAddress = audioDevice.address;
 
     if (audioDevice.type.type == AudioDeviceType::OUT_BUS &&
-            audioDevice.type.connection != ::aidl::android::media::audio::common::AudioDeviceDescription::CONNECTION_HDMI) {
+            audioDevice.type.connection.empty()) {
         LOG(INFO) << __func__ << ": BUS : " << audioDevice.toString();
         std::string idStr = ::android::internal::ToString(deviceAddress.get<AudioDeviceAddress::Tag::id>());
         bus_name = idStr.c_str();
