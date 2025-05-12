@@ -110,6 +110,11 @@ ndk::ScopedAStatus ModulePrimary::populateConnectedDevicePort(
                         mixer_close(mixer);
                         return ndk::ScopedAStatus::ok();
                     }
+                } else {
+                    /* evk_8ulp hdmi driver imx-spdif doesn't support HDMI Jack */
+                    LOG(INFO) << __func__ << ": HDMI Jack doesn't support";
+                    mixer_close(mixer);
+                    return ndk::ScopedAStatus::ok();
                 }
                 usleep(200000);
                 LOG(INFO) << __func__ << ": detect HDMI connection, retry " << retry;
