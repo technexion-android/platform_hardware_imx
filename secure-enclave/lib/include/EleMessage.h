@@ -18,7 +18,7 @@
 
 #include <stdint.h>
 
-#define ELE_MU_MSG_SIZE (17)
+#define ELE_MU_MSG_SIZE (32)
 #define NVM_HEADER_SIZE (sizeof(struct nvm_header))
 /* Max number of words without the requirement of CRC */
 #define STORAGE_NB_WORDS_MAX_NO_CRC (4u)
@@ -216,11 +216,31 @@ typedef enum import_operation_flag {
 } import_operation_flag;
 
 typedef enum cipher_operation_flag {
-    CIPHER_ONE_GO_FLAGS_DECRYPT = (0u << 0),
-    CIPHER_ONE_GO_FLAGS_ENCRYPT = (1u << 0),
-    CIPHER_ONE_GO_FLAGS_FULL_IV = (1u << 1),
-    CIPHER_ONE_GO_FLAGS_COUNTER_IV = (1u << 2)
+    CIPHER_FLAGS_DECRYPT = (0u << 0),
+    CIPHER_FLAGS_ENCRYPT = (1u << 0),
+    CIPHER_FLAGS_PLAINTEXT_KEY = (1u << 3),
+    CIPHER_FLAGS_MULTI_INIT = (1u << 8),
+    CIPHER_FLAGS_MULTI_UPDATE = (1u << 10),
+    CIPHER_FLAGS_MULTI_FINAL = (1u << 11),
+    CIPHER_FLAGS_MULTI_ABORT = (1u << 13),
+    CIPHER_FLAGS_MULTI_GET_CTX = (1u << 15),
 } cipher_operation_flag;
+
+typedef enum aead_operation_flag {
+    AEAD_FLAGS_DECRYPT = (0u << 0),
+    AEAD_FLAGS_ENCRYPT = (1u << 0),
+    AEAD_FLAGS_FULL_IV = (1u << 1),
+    AEAD_FLAGS_COUNTER_IV = (1u << 2),
+    AEAD_FLAGS_PLAINTEXT_KEY = (1u << 3),
+    AEAD_FLAGS_ONE_SHOT = (1u << 4),
+    AEAD_FLAGS_MULTI_INIT = (1u << 8),
+    AEAD_FLAGS_MULTI_UPDATE_AAD = (1u << 9),
+    AEAD_FLAGS_MULTI_UPDATE_DATA = (1u << 10),
+    AEAD_FLAGS_MULTI_FINAL = (1u << 11),
+    AEAD_FLAGS_MULTI_FINAL_VERIFY = (1u << 12),
+    AEAD_FLAGS_MULTI_ABORT = (1u << 13),
+    AEAD_FLAGS_MULTI_GET_CTX = (1u << 15),
+} aead_operation_flag;
 
 typedef enum ele_gen_sign_flag {
     ELE_SIGN_FLAGS_DIGEST = (0),
@@ -596,13 +616,18 @@ typedef struct cipher_msg_cmd {
     uint32_t key_id;
     uint32_t iv_addr;
     uint16_t iv_size;
-    uint8_t flags;
-    uint8_t rsv;
+    uint16_t flags;
     uint32_t algo;
     uint32_t input_addr;
     uint32_t output_addr;
     uint32_t input_size;
     uint32_t output_size;
+    uint16_t key_size;
+    uint16_t key_type;
+    uint32_t ctx;
+    uint16_t ctx_size;
+    uint16_t rsv1;
+    uint32_t rsv2;
     uint32_t crc;
 } cipher_msg_cmd;
 
@@ -615,7 +640,7 @@ typedef struct cipher_operation_attr {
     uint32_t key_id;
     uint8_t *iv_addr;
     uint16_t iv_size;
-    uint8_t flags;
+    uint16_t flags;
     uint32_t algo;
     uint8_t *input_addr;
     uint8_t *output_addr;
@@ -625,39 +650,54 @@ typedef struct cipher_operation_attr {
 
 typedef struct cipher_aead_msg_cmd {
     uint32_t cipher_hdl;
-    uint32_t key_id;
-    uint32_t iv_addr;
-    uint16_t iv_size;
-    uint8_t flags;
-    uint8_t rsv;
     uint32_t algo;
+    uint16_t flags;
+    uint16_t iv_size;
+    uint32_t iv_in_addr;
+    uint32_t iv_out_addr;
+    uint32_t key_id;
+    uint32_t tag_addr;
+    uint16_t tag_size;
+    uint16_t key_size;
     uint32_t aad_addr;
-    uint16_t aad_size;
-    uint16_t rsv2;
+    uint32_t aad_size;
     uint32_t input_addr;
-    uint32_t output_addr;
     uint32_t input_size;
+    uint32_t output_addr;
     uint32_t output_size;
+    uint32_t ctx_addr;
+    uint16_t ctx_size;
+    uint16_t key_type;
+    uint32_t rsv;
     uint32_t crc;
 } cipher_aead_msg_cmd;
 
 typedef struct cipher_aead_msg_rsp {
     uint32_t rsp_code;
     uint32_t output_size;
+    uint32_t verify_status;
 } cipher_aead_msg_rsp;
 
 typedef struct cipher_aead_operation_attr {
-    uint32_t key_id;
-    uint8_t *iv_addr;
-    uint16_t iv_size;
-    uint8_t flags;
+    uint32_t cipher_hdl;
     uint32_t algo;
+    uint16_t flags;
+    uint16_t iv_size;
+    uint8_t *iv_in_addr;
+    uint8_t *iv_out_addr;
+    uint32_t key_id;
+    uint8_t *tag_addr;
+    uint16_t tag_size;
+    uint16_t key_size;
     uint8_t *aad_addr;
-    uint16_t aad_size;
+    uint32_t aad_size;
     uint8_t *input_addr;
-    uint8_t *output_addr;
     uint32_t input_size;
+    uint8_t *output_addr;
     uint32_t output_size;
+    uint8_t *ctx_addr;
+    uint16_t ctx_size;
+    uint16_t key_type;
 } cipher_aead_operation_attr;
 
 typedef struct sign_gen_open_msg_cmd {
