@@ -291,7 +291,7 @@ int test_cipher_operation(EleOperation *ops, uint32_t keyStoreHandler, uint32_t 
     sym_key_op_attr.key_id = keyID;
     sym_key_op_attr.iv_addr = iv_data;
     sym_key_op_attr.iv_size = sizeof(iv_data);
-    sym_key_op_attr.flags = CIPHER_ONE_GO_FLAGS_ENCRYPT;
+    sym_key_op_attr.flags = CIPHER_FLAGS_ENCRYPT;
     sym_key_op_attr.algo = PERMITTED_ALGO_CBC_NO_PADDING;
     sym_key_op_attr.input_addr = hash_data;
     sym_key_op_attr.input_size = sizeof(hash_data);
@@ -314,7 +314,7 @@ int test_cipher_operation(EleOperation *ops, uint32_t keyStoreHandler, uint32_t 
     sym_key_op_attr.key_id = keyID;
     sym_key_op_attr.iv_addr = iv_data;
     sym_key_op_attr.iv_size = sizeof(iv_data);
-    sym_key_op_attr.flags = CIPHER_ONE_GO_FLAGS_DECRYPT;
+    sym_key_op_attr.flags = CIPHER_FLAGS_DECRYPT;
     sym_key_op_attr.algo = PERMITTED_ALGO_CBC_NO_PADDING;
     sym_key_op_attr.input_addr = ciphered_data;
     sym_key_op_attr.input_size = sizeof(ciphered_data);
@@ -373,6 +373,7 @@ int test_cipher_aead_operation(EleOperation *ops, uint32_t keyStoreHandler, uint
     uint32_t cipherHandle = 0;
     uint8_t ciphered_aead_data[48];
     uint8_t deciphered_aead_data[32];
+    uint8_t tag_aead_data[16];
     uint32_t keyID = 0;
     int ret = 0;
 
@@ -409,10 +410,13 @@ int test_cipher_aead_operation(EleOperation *ops, uint32_t keyStoreHandler, uint
     /* encryption */
     memset(&sym_key_aead_op_addr, 0, sizeof(sym_key_aead_op_addr));
     sym_key_aead_op_addr.key_id = keyID;
-    sym_key_aead_op_addr.iv_addr = iv_data_aead;
+    sym_key_aead_op_addr.iv_in_addr = iv_data_aead;
     sym_key_aead_op_addr.iv_size = sizeof(iv_data_aead);
-    sym_key_aead_op_addr.flags = CIPHER_ONE_GO_FLAGS_ENCRYPT;
+    sym_key_aead_op_addr.iv_out_addr = NULL;
+    sym_key_aead_op_addr.flags = AEAD_FLAGS_ENCRYPT | AEAD_FLAGS_ONE_SHOT;
     sym_key_aead_op_addr.algo = PERMITTED_ALGO_CCM;
+    sym_key_aead_op_addr.tag_addr = tag_aead_data;
+    sym_key_aead_op_addr.tag_size = sizeof(tag_aead_data);
     sym_key_aead_op_addr.aad_addr = aad_data_aead;
     sym_key_aead_op_addr.aad_size = sizeof(aad_data_aead);
     sym_key_aead_op_addr.input_addr = hash_data;
@@ -434,14 +438,17 @@ int test_cipher_aead_operation(EleOperation *ops, uint32_t keyStoreHandler, uint
     /* dencryption */
     memset(&sym_key_aead_op_addr, 0, sizeof(sym_key_aead_op_addr));
     sym_key_aead_op_addr.key_id = keyID;
-    sym_key_aead_op_addr.iv_addr = iv_data_aead;
+    sym_key_aead_op_addr.iv_in_addr = iv_data_aead;
     sym_key_aead_op_addr.iv_size = sizeof(iv_data_aead);
-    sym_key_aead_op_addr.flags = CIPHER_ONE_GO_FLAGS_DECRYPT;
+    sym_key_aead_op_addr.iv_out_addr = NULL;
+    sym_key_aead_op_addr.flags = AEAD_FLAGS_DECRYPT | AEAD_FLAGS_ONE_SHOT;
     sym_key_aead_op_addr.algo = PERMITTED_ALGO_CCM;
+    sym_key_aead_op_addr.tag_addr = tag_aead_data;
+    sym_key_aead_op_addr.tag_size = sizeof(tag_aead_data);
     sym_key_aead_op_addr.aad_addr = aad_data_aead;
     sym_key_aead_op_addr.aad_size = sizeof(aad_data_aead);
     sym_key_aead_op_addr.input_addr = ciphered_aead_data;
-    sym_key_aead_op_addr.input_size = sizeof(ciphered_aead_data);
+    sym_key_aead_op_addr.input_size = sizeof(hash_data); // the actual ciphertext size
     sym_key_aead_op_addr.output_addr = deciphered_aead_data;
     sym_key_aead_op_addr.output_size = sizeof(deciphered_aead_data);
     error = ops->eleCipherAeadOperation(cipherHandle, &sym_key_aead_op_addr);
