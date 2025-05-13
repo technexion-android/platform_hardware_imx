@@ -1214,6 +1214,7 @@ int ImageProcess::ConvertImageByOclCvt(ImxImageBuffer &dstBuf, ImxImageBuffer &s
     memset(&input_format, 0, sizeof(input_format));
     memset(&output_format, 0, sizeof(output_format));
 
+    Mutex::Autolock _l(mOclCvtLock);
     ImxImageBufferToOclFormat(srcBuf, input_format);
     ImxImageBufferToOclFormat(dstBuf, output_format);
 

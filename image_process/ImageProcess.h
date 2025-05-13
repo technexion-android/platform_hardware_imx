@@ -135,6 +135,7 @@ private:
     ocl_getParam m_ocl_getParam;
     ocl_convert m_ocl_convert;
     ocl_close m_ocl_close;
+    Mutex mOclCvtLock;
 };
 
 } // namespace fsl
