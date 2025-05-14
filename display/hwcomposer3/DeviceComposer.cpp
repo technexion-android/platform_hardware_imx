@@ -634,11 +634,19 @@ enum g2d_format DeviceComposer::convertFormat(uint32_t format, G2dBuffer& buff) 
 #endif
             break;
         case DRM_FORMAT_YUV420:
+#ifdef FORMAT_WORKAROUND_FOR_PXP
+            halFormat = G2D_YV12;
+#else
             halFormat = G2D_I420;
+#endif
             break;
         case DRM_FORMAT_YVU420_ANDROID:
         case DRM_FORMAT_YVU420:
+#ifdef FORMAT_WORKAROUND_FOR_PXP
+            halFormat = G2D_I420;
+#else
             halFormat = G2D_YV12;
+#endif
             break;
         case DRM_FORMAT_NV16:
             halFormat = G2D_NV16;
