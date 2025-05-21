@@ -872,11 +872,7 @@ status_t CameraDeviceSessionHwlImpl::ConfigurePipeline(
             case HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED:
                 if (strcmp(mSensorData.v4l2_format, "nv12") == 0) {
                     ALOGI("HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED, use nv12");
-                    if (strstr(mSocType, "imx93")) {
-                        hal_stream.override_format = HAL_PIXEL_FORMAT_YV12;
-                    } else {
-                        hal_stream.override_format = HAL_PIXEL_FORMAT_YCBCR_420_888;
-                    }
+                    hal_stream.override_format = HAL_PIXEL_FORMAT_YCBCR_420_888;
                 } else
                     hal_stream.override_format = HAL_PIXEL_FORMAT_YCBCR_422_I;
 
