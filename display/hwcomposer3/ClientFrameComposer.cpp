@@ -432,8 +432,10 @@ HWC3::Error ClientFrameComposer::validateDisplay(Display* display, DisplayChange
         }
     }
 
-    if (!mG2dComposer->isValid() || (!mustDeviceComposition && !deviceComposition) ||
-        (display->getColorTransformHint() != common::ColorTransform::IDENTITY)) {
+    if (!mG2dComposer->isValid() ||
+        (!mustDeviceComposition &&
+         (!deviceComposition ||
+          display->getColorTransformHint() != common::ColorTransform::IDENTITY))) {
         /* currently Device Composer(G2D/DPU) cannot process color transform */
         for (auto& layer : layersForComposition) {
             const auto layerId = layer->getId();
