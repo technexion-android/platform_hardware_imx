@@ -30,9 +30,9 @@ namespace android {
 
 ExternalISPWrapper::ExternalISPWrapper(int32_t fd) : m_fd(fd) {
     // Set ISP feature to it's default value.
-    m_lastAwbMode = ANDROID_CONTROL_AWB_MODE_OFF;
-    m_lastAeMode = ANDROID_CONTROL_AE_MODE_OFF;
-    m_lastAfMode = ANDROID_CONTROL_AF_MODE_OFF;
+    m_lastAwbMode = ANDROID_CONTROL_AWB_MODE_AUTO;
+    m_lastAeMode = ANDROID_CONTROL_AE_MODE_ON;
+    m_lastAfMode = ANDROID_CONTROL_AF_MODE_AUTO;
 
     m_lastExposureTime = 0;
     m_lastFocusDistance = 0.0f;
@@ -94,14 +94,13 @@ int32_t ExternalISPWrapper::enableAWB(bool enable) {
     return 0;
 }
 
-int32_t ExternalISPWrapper::processAWB(uint8_t mode) {
+int32_t ExternalISPWrapper::processAWB(uint8_t mode, bool force) {
     int32_t ret = 0;
 
     ALOGV("%s, mode %d, m_lastAwbMode %d", __func__, mode, m_lastAwbMode);
-    if (mode == m_lastAwbMode)
+    if (mode == m_lastAwbMode && force == false)
         return 0;
-
-    ALOGI("%s, change WB mode from %d to %d", __func__, m_lastAwbMode, mode);
+    ALOGI("%s, change WB mode from %d to %d, force %d", __func__, m_lastAwbMode, mode, force);
 
     if ((mode == ANDROID_CONTROL_AWB_MODE_AUTO) || (mode == ANDROID_CONTROL_AWB_MODE_OFF)) {
         bool bEnable = (mode == ANDROID_CONTROL_AWB_MODE_AUTO) ? true : false;
@@ -160,12 +159,13 @@ int32_t ExternalISPWrapper::processAWB(uint8_t mode) {
     return ret;
 }
 
-int32_t ExternalISPWrapper::processAeMode(uint8_t mode) {
+int32_t ExternalISPWrapper::processAeMode(uint8_t mode, bool force) {
     int32_t ret = 0;
 
     ALOGV("%s, mode %d, m_lastAeMode %d", __func__, mode, m_lastAeMode);
-    if (mode == m_lastAeMode)
+    if (mode == m_lastAeMode && force == false)
         return 0;
+    ALOGI("%s: set ae mode to %d, force %d", __func__, mode, force);
 
     int32_t autoExposureMode = V4L2_EXPOSURE_MANUAL;
     switch (mode) {
@@ -227,12 +227,13 @@ int32_t ExternalISPWrapper::processExposureTime(int64_t exposureTime) {
     return 0;
 }
 
-int32_t ExternalISPWrapper::enableAF(uint8_t mode) {
+int32_t ExternalISPWrapper::processAfMode(uint8_t mode, bool force) {
     int32_t ret = 0;
 
     ALOGV("%s, mode %d, m_lastAfMode %d", __func__, mode, m_lastAfMode);
-    if (mode == m_lastAfMode)
+    if (mode == m_lastAfMode && force == false)
         return 0;
+    ALOGI("%s: set af mode to %d, force %d", __func__, mode, force);
 
     bool autoFocusMode = false;
     switch (mode) {
@@ -324,7 +325,7 @@ int32_t ExternalISPWrapper::process(CameraMetadata& meta) {
     // AF
     entry = meta.find(ANDROID_CONTROL_AF_MODE);
     if (entry.count > 0) {
-        (void)enableAF(entry.data.u8[0]);
+        (void)processAfMode(entry.data.u8[0]);
     }
 
     // Focus Distance

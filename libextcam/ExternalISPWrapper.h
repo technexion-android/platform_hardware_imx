@@ -26,14 +26,13 @@ public:
     ExternalISPWrapper(int32_t fd);
     ~ExternalISPWrapper();
     int32_t process(CameraMetadata& pMeta);
+    int32_t processAWB(uint8_t mode, bool force = false);
+    int32_t processAeMode(uint8_t mode, bool force = false);
+    int32_t processAfMode(uint8_t mode, bool force = false);
 
 private:
     int32_t enableAWB(bool enable);
-    int32_t processAWB(uint8_t mode);
-    int32_t processAeMode(uint8_t mode);
-    int32_t processExposureGain(int32_t compare_type);
     int32_t processExposureTime(int64_t exposureTime);
-    int32_t enableAF(uint8_t mode);
     int32_t processFocusDistance(float focusDistance);
 
 private:
