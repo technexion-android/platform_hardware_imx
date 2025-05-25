@@ -136,70 +136,6 @@ int BluetoothHci::getFdFromDevPath() {
   return fd;
 }
 
-void BluetoothHci::reset() {
-  // Send a reset command and wait until the command complete comes back.
-
-  std::vector<uint8_t> reset = {0x03, 0x0c, 0x00};
-
-  auto resetPromise = std::make_shared<std::promise<void>>();
-  auto resetFuture = resetPromise->get_future();
-
-  mH4 = std::make_shared<H4Protocol>(
-      mFd,
-      [](const std::vector<uint8_t>& raw_command) {
-        ALOGI("Discarding %d bytes with command type",
-              static_cast<int>(raw_command.size()));
-      },
-      [](const std::vector<uint8_t>& raw_acl) {
-        ALOGI("Discarding %d bytes with acl type",
-              static_cast<int>(raw_acl.size()));
-      },
-      [](const std::vector<uint8_t>& raw_sco) {
-        ALOGI("Discarding %d bytes with sco type",
-              static_cast<int>(raw_sco.size()));
-      },
-      [resetPromise](const std::vector<uint8_t>& raw_event) {
-        std::vector<uint8_t> reset_complete = {0x0e, 0x04, 0x01,
-                                               0x03, 0x0c, 0x00};
-        bool valid = raw_event.size() == 6 &&
-                     raw_event[0] == reset_complete[0] &&
-                     raw_event[1] == reset_complete[1] &&
-                     raw_event[3] == reset_complete[3] &&
-                     raw_event[4] == reset_complete[4] &&
-                     raw_event[5] == reset_complete[5];
-        if (valid) {
-          resetPromise->set_value();
-        } else {
-          ALOGI("Discarding %d bytes with event type",
-                static_cast<int>(raw_event.size()));
-        }
-      },
-      [](const std::vector<uint8_t>& raw_iso) {
-        ALOGI("Discarding %d bytes with iso type",
-              static_cast<int>(raw_iso.size()));
-      },
-      [this]() {
-        ALOGI("HCI socket device disconnected while waiting for reset");
-        mFdWatcher.StopWatchingFileDescriptors();
-      });
-  mFdWatcher.WatchFdForNonBlockingReads(mFd,
-                                        [this](int) { mH4->OnDataReady(); });
-
-  ndk::ScopedAStatus result = send(PacketType::COMMAND, reset);
-  if (!result.isOk()) {
-    ALOGE("Error sending reset command");
-  }
-  auto status = resetFuture.wait_for(std::chrono::seconds(1));
-  mFdWatcher.StopWatchingFileDescriptors();
-  if (status == std::future_status::ready) {
-    ALOGI("HCI Reset successful");
-  } else {
-    ALOGE("HCI Reset Response not received in one second");
-  }
-
-  resetPromise.reset();
-}
-
 ndk::ScopedAStatus BluetoothHci::initialize(
     const std::shared_ptr<IBluetoothHciCallbacks>& cb) {
   ALOGI("Initializing Bluetooth HCI via AIDL");
@@ -248,7 +184,6 @@ ndk::ScopedAStatus BluetoothHci::initialize(
       },
       [this]() {
         ALOGI("HCI socket device disconnected");
-        mFdWatcher.StopWatchingFileDescriptors();
       });
   if (!rc) {
     ALOGE("VendorInterface::Initialize failed");

@@ -54,7 +54,6 @@ class BluetoothHci : public BnBluetoothHci {
   static BluetoothHci* get();
 
  private:
-  int mFd{-1};
   std::shared_ptr<IBluetoothHciCallbacks> mCb = nullptr;
 
   std::shared_ptr<::android::hardware::bluetooth::hci::H4Protocol> mH4;
@@ -62,8 +61,6 @@ class BluetoothHci : public BnBluetoothHci {
   std::shared_ptr<BluetoothDeathRecipient> mDeathRecipient;
 
   std::string mDevPath;
-
-  ::android::hardware::bluetooth::async::AsyncFdWatcher mFdWatcher;
 
   int getFdFromDevPath();
   [[nodiscard]] ndk::ScopedAStatus send(
