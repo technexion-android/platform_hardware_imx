@@ -252,6 +252,7 @@ ndk::ScopedAStatus BluetoothHci::initialize(
       });
   if (!rc) {
     ALOGE("VendorInterface::Initialize failed");
+    VendorInterface::Shutdown();
     {
       std::lock_guard<std::mutex> guard(mStateMutex);
       mState = HalState::READY;
