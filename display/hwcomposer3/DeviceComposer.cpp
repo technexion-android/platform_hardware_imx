@@ -145,10 +145,12 @@ DeviceComposer::DeviceComposer() {
 
 DeviceComposer::~DeviceComposer() {
     if (mSolidColorBuffer.hnd != NULL) {
+        unlockSurface(mSolidColorBuffer);
         ::android::GraphicBufferAllocator::get().free(mSolidColorBuffer.hnd);
     }
 #ifdef G2D_FORMAT_CONVERSION
     if (mG2dConvertBuffer.hnd == NULL) {
+        unlockSurface(mG2dConvertBuffer);
         ::android::GraphicBufferAllocator::get().free(mG2dConvertBuffer.hnd);
     }
 #endif
@@ -234,6 +236,7 @@ int DeviceComposer::prepareG2dTempBuffer(G2dBuffer& srcBuffer, uint32_t newForma
     }
 
     if (tempBuffer->hnd != NULL) {
+        unlockSurface(*tempBuffer);
         ::android::GraphicBufferAllocator::get().free(tempBuffer->hnd);
         tempBuffer->hnd = NULL;
     }
@@ -255,6 +258,7 @@ int DeviceComposer::prepareG2dTempBuffer(G2dBuffer& srcBuffer, uint32_t newForma
         return -1;
     }
     tempBuffer->hnd = bufferHandle;
+    lockSurface(*tempBuffer); // each temporary buffer will lockSurface() when allocate
 
     return 1;
 }
@@ -270,9 +274,7 @@ int DeviceComposer::prepareSolidColorBuffer(G2dBuffer& target) {
         rect.left = rect.top = 0;
         rect.right = static_cast<int>(mSolidColorBuffer.info.width);
         rect.bottom = static_cast<int>(mSolidColorBuffer.info.height);
-        lockSurface(mSolidColorBuffer);
         clearRect(mSolidColorBuffer, rect);
-        unlockSurface(mSolidColorBuffer);
     }
 
     return 0;
@@ -280,6 +282,7 @@ int DeviceComposer::prepareSolidColorBuffer(G2dBuffer& target) {
 
 int DeviceComposer::freeSolidColorBuffer() {
     if (mSolidColorBuffer.hnd != NULL) {
+        unlockSurface(mSolidColorBuffer);
         ::android::GraphicBufferAllocator::get().free(mSolidColorBuffer.hnd);
         mSolidColorBuffer.hnd = NULL;
         memset(&mSolidColorBuffer.info, 0, sizeof(mSolidColorBuffer.info));
@@ -797,7 +800,16 @@ int DeviceComposer::lockSurface(G2dBuffer& buff) {
         return -EINVAL;
     }
 
-    return (*mLockSurface)((void*)buff.hnd);
+#ifndef G2D_LIMITATION_VIV
+    buff.originPhys = buff.info.phys;
+#endif
+    int ret = (*mLockSurface)((void*)buff.hnd);
+#ifdef G2D_LIMITATION_VIV
+    // The phys in handle will change after lockSurface() if GPU disable flat-mapping, update info
+    getPhysFromHandle(buff.hnd, &buff.info.phys);
+#endif
+
+    return ret;
 }
 
 int DeviceComposer::unlockSurface(G2dBuffer& buff) {
@@ -805,7 +817,14 @@ int DeviceComposer::unlockSurface(G2dBuffer& buff) {
         return -EINVAL;
     }
 
-    return (*mUnlockSurface)((void*)buff.hnd);
+    int ret = (*mUnlockSurface)((void*)buff.hnd);
+#ifndef G2D_LIMITATION_VIV
+    // Restore the original phys to handle after unlockSurface(), so the phys are correct for next
+    //  frame composition when use DPU or PXP.
+    setPhysToHandle(buff.hnd, buff.originPhys);
+#endif
+
+    return ret;
 }
 //-----------------------End of API wrappers for libgpuhelper.so--------------------------------
 
