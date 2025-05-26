@@ -36,6 +36,7 @@ typedef void* (*hwc_buf_func)(void* arg1);
 struct G2dBuffer {
     buffer_handle_t hnd;
     HandleInfo info;
+    uint64_t originPhys; // used in lockSurface()/unlockSurface()
 };
 
 using ::android::Mutex;
