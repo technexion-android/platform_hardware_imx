@@ -67,9 +67,6 @@ class BluetoothHci : public BnBluetoothHci {
       ::android::hardware::bluetooth::hci::PacketType type,
       const std::vector<uint8_t>& packet);
 
-  // Send a reset command and discard all packets until a reset is received.
-  void reset();
-
   // Don't close twice or open before close is complete
   std::mutex mStateMutex;
   enum class HalState {
