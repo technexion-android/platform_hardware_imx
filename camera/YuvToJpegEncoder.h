@@ -82,6 +82,7 @@ protected:
                           __attribute__((unused)) int dstWidth,
                           __attribute__((unused)) int dstHeight);
     bool supportVpu;
+    bool mDebug;
 };
 
 class Yuv420SpToJpegEncoder : public YuvToJpegEncoder {
