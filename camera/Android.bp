@@ -109,6 +109,7 @@ cc_library_shared {
 
 cc_binary {
     name: "JpegEncTest",
+    defaults: ["imx_camera_default", "imx_image_process_defaults"],
     vendor: true,
     srcs: [
         "JpegEncTest.cpp",
