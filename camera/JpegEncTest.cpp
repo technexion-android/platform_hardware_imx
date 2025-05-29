@@ -80,7 +80,7 @@ int main(int argc, char *argv[]) {
         }
 
         ret = fread(inBuf, 1, inSize, pSrcFileStream);
-        if (ret != inSize) {
+        if (ret != (int)inSize) {
             printf("Failed to read file %s for %d bytes\n", fileSrcName, inSize);
             ret = -1;
             goto exit;
