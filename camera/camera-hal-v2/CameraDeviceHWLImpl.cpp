@@ -148,6 +148,8 @@ static int resCandidatePicture_ap1302[] = {320, 240, 640, 480, 1280, 720, 1280, 
 static int resCandidatePreview_ov5640[] = {320, 240, 640, 480, 1024, 768, 1280, 720, 1920, 1080};
 static int resCandidatePicture_ov5640[] = {320,  240, 640,  480,  1024, 768,
                                            1280, 720, 1920, 1080, 2592, 1944};
+static int resCandidatePreview_mx95mbcam[] = {320, 240, 640, 480, 1280, 720, 1920, 1080, 1920, 1280};
+static int resCandidatePicture_mx95mbcam[] = {320, 240, 640, 480, 1280, 720, 1920, 1080, 1920, 1280};
 
 status_t CameraDeviceHwlImpl::initSensorStaticData() {
     // first read sensor format.
@@ -194,6 +196,11 @@ status_t CameraDeviceHwlImpl::initSensorStaticData() {
         numResCandidatePreview = ARRAY_SIZE(resCandidatePreview_ov5640);
         pResCandidatePicture = resCandidatePicture_ov5640;
         numResCandidatePicture = ARRAY_SIZE(resCandidatePicture_ov5640);
+    } else if (strstr(mSensorData.camera_name, "mx95mbcam")) {
+        pResCandidatePreview = resCandidatePreview_mx95mbcam;
+        numResCandidatePreview = ARRAY_SIZE(resCandidatePreview_mx95mbcam);
+        pResCandidatePicture = resCandidatePicture_mx95mbcam;
+        numResCandidatePicture = ARRAY_SIZE(resCandidatePicture_mx95mbcam);
     } else {
         ALOGE("%s: unsupported camera %s", __func__, mSensorData.camera_name);
         return BAD_VALUE;
@@ -245,6 +252,7 @@ status_t CameraDeviceHwlImpl::initSensorStaticData() {
     int fpsRange_os08a20[] = {10, 30, 15, 30, 30, 30};
     int fpsRange_ap1302[] = {10, 30, 15, 30, 30, 30, 15, 60, 60, 60};
     int fpsRange_ov5640[] = {10, 30, 15, 30, 30, 30};
+    int fpsRange_mx95mbcam[] = {10, 30, 15, 30, 30, 30};
 
     if (strstr(mSensorData.camera_name, "os08a20")) {
         int rangeCount = ARRAY_SIZE(fpsRange_os08a20);
@@ -254,6 +262,10 @@ status_t CameraDeviceHwlImpl::initSensorStaticData() {
         int rangeCount = ARRAY_SIZE(fpsRange_ap1302);
         mFpsRangeCount = rangeCount <= MAX_FPS_RANGE ? rangeCount : MAX_FPS_RANGE;
         memcpy(mTargetFpsRange, fpsRange_ap1302, mFpsRangeCount * sizeof(int));
+    } else if (strstr(mSensorData.camera_name, "mx95mbcam")) {
+        int rangeCount = ARRAY_SIZE(fpsRange_mx95mbcam);
+        mFpsRangeCount = rangeCount <= MAX_FPS_RANGE ? rangeCount : MAX_FPS_RANGE;
+        memcpy(mTargetFpsRange, fpsRange_mx95mbcam, mFpsRangeCount * sizeof(int));
     } else {
         int rangeCount = ARRAY_SIZE(fpsRange_ov5640);
         mFpsRangeCount = rangeCount <= MAX_FPS_RANGE ? rangeCount : MAX_FPS_RANGE;
