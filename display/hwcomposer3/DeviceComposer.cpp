@@ -988,7 +988,21 @@ bool DeviceComposer::checkDeviceComposition(Layer* layer) {
         return false;
     }
 #endif
+#ifdef PXP_LIMITATION_DOWN_SCALE
+    common::Rect rect = layer->getDisplayFrame();
+    int w = (rect.right - rect.left);
+    int h = (rect.bottom - rect.top);
+    common::Rect srect = layer->getSourceCropInt();
+    int srcW = srect.right - srect.left;
+    int srcH = srect.bottom - srect.top;
 
+    if ((srcW > w) || (srcH > h)) {
+        // PXP of imx943 A0 don't support down-scaling
+        DEBUG_LOG("%s: layer %" PRId64 " scaling(src: %d x %d, dst: %d x %d) check failed",
+                  __FUNCTION__, layer->getId(), srcW, srcH, w, h);
+        return false;
+    }
+#endif
 #ifdef G2D_LIMITATION_VIV
     if (info.drm_format == DRM_FORMAT_ABGR2101010) {
         DEBUG_LOG("%s: g2d can't support ABGR2101010 format", __FUNCTION__);

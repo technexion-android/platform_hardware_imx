@@ -114,6 +114,9 @@ hwc_config_soc_cc_defaults {
             IMX93: {
                 cflags: ["-DFORMAT_WORKAROUND_FOR_PXP"],
             },
+            IMX943: {
+                cflags: ["-DPXP_LIMITATION_DOWN_SCALE"],
+            },
         },
     },
 }
