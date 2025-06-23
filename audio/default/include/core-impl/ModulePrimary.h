@@ -1,6 +1,5 @@
 /*
  * Copyright (C) 2023 The Android Open Source Project
- * Copyright 2024 NXP
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,12 +22,15 @@ namespace aidl::android::hardware::audio::core {
 
 class ModulePrimary final : public Module {
   public:
-    ModulePrimary(std::unique_ptr<Configuration>&& config);
-    ~ModulePrimary();
+    ModulePrimary(std::unique_ptr<Configuration>&& config)
+        : Module(Type::DEFAULT, std::move(config)) {}
 
   protected:
     ndk::ScopedAStatus getTelephony(std::shared_ptr<ITelephony>* _aidl_return) override;
 
+    ndk::ScopedAStatus calculateBufferSizeFrames(
+            const ::aidl::android::media::audio::common::AudioFormatDescription& format,
+            int32_t latencyMs, int32_t sampleRateHz, int32_t* bufferSizeFrames) override;
     ndk::ScopedAStatus createInputStream(
             StreamContext&& context,
             const ::aidl::android::hardware::audio::common::SinkMetadata& sinkMetadata,
@@ -40,10 +42,11 @@ class ModulePrimary final : public Module {
             const std::optional<::aidl::android::media::audio::common::AudioOffloadInfo>&
                     offloadInfo,
             std::shared_ptr<StreamOut>* result) override;
+    ndk::ScopedAStatus createMmapBuffer(
+            const ::aidl::android::media::audio::common::AudioPortConfig& portConfig,
+            int32_t bufferSizeFrames, int32_t frameSizeBytes, MmapBufferDescriptor* desc) override;
     int32_t getNominalLatencyMs(
             const ::aidl::android::media::audio::common::AudioPortConfig& portConfig) override;
-    ndk::ScopedAStatus populateConnectedDevicePort(
-            ::aidl::android::media::audio::common::AudioPort* audioPort, int32_t nextPortId) override;
 
   private:
     ChildInterface<ITelephony> mTelephony;

@@ -16,8 +16,13 @@
 
 #pragma once
 
+#include <atomic>
 #include <optional>
+#include <thread>
 #include <vector>
+
+#include <media/nbaio/MonoPipe.h>
+#include <media/nbaio/MonoPipeReader.h>
 
 #include "Stream.h"
 #include "alsa/Utils.h"
@@ -35,7 +40,7 @@ class StreamAlsa : public StreamCommonImpl {
     ~StreamAlsa();
 
     // Methods of 'DriverInterface'.
-    ::android::status_t init() override;
+    ::android::status_t init(DriverCallbackInterface* callback) override;
     ::android::status_t drain(StreamDescriptor::DrainMode) override;
     ::android::status_t flush() override;
     ::android::status_t pause() override;
@@ -55,41 +60,26 @@ class StreamAlsa : public StreamCommonImpl {
     const size_t mFrameSizeBytes;
     const int mSampleRate;
     const bool mIsInput;
-    std::optional<struct pcm_config> mConfig;
+    const std::optional<struct pcm_config> mConfig;
     const int mReadWriteRetries;
-    // All fields below are only used on the worker thread.
-    std::vector<alsa::DeviceProxy> mAlsaDeviceProxies;
 
   private:
+    ::android::NBAIO_Format getPipeFormat() const;
+    ::android::sp<::android::MonoPipe> makeSink(bool writeCanBlock);
+    ::android::sp<::android::MonoPipeReader> makeSource(::android::MonoPipe* pipe);
+    void inputIoThread(size_t idx);
+    void outputIoThread(size_t idx);
+    void teardownIo();
+
     std::atomic<float> mGain = 1.0;
-  protected:
-    /*
-      Enable audio dump feature:
-        setprop persist.vendor.audio.dump 1
-        touch /data/out_alsa.pcm
-        touch /data/in_alsa.pcm
-        touch /data/out_primary.pcm
-        touch /data/in_primary.pcm
-        chmod 777 /data/out_alsa.pcm
-        chmod 777 /data/in_alsa.pcm
-        chmod 777 /data/out_primary.pcm
-        chmod 777 /data/in_primary.pcm
-      Each boot:
-        setenforce 0
-        pkill audioserver
-      Do audio tests...
-      Pull the data:
-        adb pull /data/out_alsa.pcm .
-        adb pull /data/in_alsa.pcm .
-        adb pull /data/out_primary.pcm .
-        adb pull /data/in_primary.pcm .
-    */
-    bool mDump = false;
-    const char* kDumpAlsaOutputFile = "/data/out_alsa.pcm";
-    const char* kDumpAlsaInputFile = "/data/in_alsa.pcm";
-    const char* kDumpPrimaryOutputFile = "/data/out_primary.pcm";
-    const char* kDumpPrimaryInputFile = "/data/in_primary.pcm";
-    void dump(const void *buffer, size_t size, const char* name);
+
+    // All fields below are only used on the worker thread.
+    std::vector<alsa::DeviceProxy> mAlsaDeviceProxies;
+    // Only 'libnbaio_mono' is vendor-accessible, thus no access to the multi-reader Pipe.
+    std::vector<::android::sp<::android::MonoPipe>> mSinks;
+    std::vector<::android::sp<::android::MonoPipeReader>> mSources;
+    std::vector<std::thread> mIoThreads;
+    std::atomic<bool> mIoThreadIsRunning = false;  // used by all threads
 };
 
 }  // namespace aidl::android::hardware::audio::core

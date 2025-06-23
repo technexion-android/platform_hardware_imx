@@ -18,10 +18,7 @@
 
 #include <mutex>
 #include <vector>
-#include <core-impl/AudioCardManager.h>
-#include <audio_utils/resampler.h>
 
-#include <core-impl/AudioCardManager.h>
 #include <android-base/thread_annotations.h>
 
 #include "DriverStubImpl.h"
@@ -35,7 +32,7 @@ class StreamPrimary : public StreamAlsa {
     StreamPrimary(StreamContext* context, const Metadata& metadata);
 
     // Methods of 'DriverInterface'.
-    ::android::status_t init() override;
+    ::android::status_t init(DriverCallbackInterface* callback) override;
     ::android::status_t drain(StreamDescriptor::DrainMode mode) override;
     ::android::status_t flush() override;
     ::android::status_t pause() override;
@@ -55,24 +52,8 @@ class StreamPrimary : public StreamAlsa {
 
     const bool mIsAsynchronous;
     int64_t mStartTimeNs = 0;
-    int16_t mStartRetryCount = 0;
-    const int16_t kMaxStartRetryCount = 8;
     long mFramesSinceStart = 0;
     bool mSkipNextTransfer = false;
-    bool mIsStereoToMono = false;
-    bool mIsS32ToS16 = false;
-    bool mIsS16ToS24 = false;
-    bool mHardwarePause = false;
-    bool mStarted = false;
-    bool mPrimaryOutput = false;
-    bool mDirectOutput = false;
-    struct audio_card *mCard = NULL;
-    struct resampler_itfe *mResampler = NULL;
-    int16_t *mResamplerBuffer = NULL;
-    std::optional<struct pcm_config> mSavedConfig;
-
-    void tryStart();
-    void stop();
 
   private:
     using AlsaDeviceId = std::pair<int, int>;
