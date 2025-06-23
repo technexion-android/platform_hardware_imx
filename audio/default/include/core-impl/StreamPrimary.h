@@ -25,6 +25,9 @@
 #include "StreamAlsa.h"
 #include "primary/PrimaryMixer.h"
 
+#include <core-impl/AudioCardManager.h>
+#include <audio_utils/resampler.h>
+
 namespace aidl::android::hardware::audio::core {
 
 class StreamPrimary : public StreamAlsa {
@@ -54,6 +57,24 @@ class StreamPrimary : public StreamAlsa {
     int64_t mStartTimeNs = 0;
     long mFramesSinceStart = 0;
     bool mSkipNextTransfer = false;
+
+  protected:
+    int16_t mStartRetryCount = 0;
+    const int16_t kMaxStartRetryCount = 8;
+    bool mIsStereoToMono = false;
+    bool mIsS32ToS16 = false;
+    bool mIsS16ToS24 = false;
+    bool mHardwarePause = false;
+    bool mStarted = false;
+    bool mPrimaryOutput = false;
+    bool mDirectOutput = false;
+    struct audio_card *mCard = NULL;
+    struct resampler_itfe *mResampler = NULL;
+    int16_t *mResamplerBuffer = NULL;
+    std::optional<struct pcm_config> mSavedConfig;
+
+    void tryStart();
+    void stop();
 
   private:
     using AlsaDeviceId = std::pair<int, int>;

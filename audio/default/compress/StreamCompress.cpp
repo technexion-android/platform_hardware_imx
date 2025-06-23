@@ -64,7 +64,7 @@ StreamCompress::~StreamCompress() {
     }
 }
 
-::android::status_t StreamCompress::init() {
+::android::status_t StreamCompress::init(DriverCallbackInterface*) {
     return ::android::OK;
 }
 
