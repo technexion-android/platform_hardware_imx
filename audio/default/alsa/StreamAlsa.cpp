@@ -156,7 +156,7 @@ StreamAlsa::~StreamAlsa() {
     mAlsaDeviceProxies = std::move(alsaDeviceProxies);
     mSources = std::move(sources);
     mSinks = std::move(sinks);
-    mIoThreadIsRunning = true;
+    mIoThreadIsRunning = false;
     for (size_t i = 0; i < mAlsaDeviceProxies.size(); ++i) {
         mIoThreads.emplace_back(mIsInput ? &StreamAlsa::inputIoThread : &StreamAlsa::outputIoThread,
                                 this, i);
@@ -189,32 +189,17 @@ void StreamAlsa::dump(const void *buffer, size_t bytes, const char *name) {
     const size_t bytesToTransfer = frameCount * mFrameSizeBytes;
     unsigned maxLatency = 0;
     if (mIsInput) {
-        const size_t i = 0;  // For the input case, only support a single device.
-        LOG(VERBOSE) << __func__ << ": reading from sink " << i;
-        ssize_t framesRead = mSources[i]->read(buffer, frameCount);
-        LOG_IF(FATAL, framesRead < 0) << "Error reading from the pipe: " << framesRead;
-        if (ssize_t framesMissing = static_cast<ssize_t>(frameCount) - framesRead;
-            framesMissing > 0) {
-            LOG(WARNING) << __func__ << ": incomplete data received, inserting " << framesMissing
-                         << " frames of silence";
-            memset(static_cast<char*>(buffer) + framesRead * mFrameSizeBytes, 0,
-                   framesMissing * mFrameSizeBytes);
-        }
-        maxLatency = proxy_get_latency(mAlsaDeviceProxies[i].get());
+        // For input case, only support single device.
+        proxy_read_with_retries(mAlsaDeviceProxies[0].get(), buffer, bytesToTransfer,
+                                mReadWriteRetries);
+        maxLatency = proxy_get_latency(mAlsaDeviceProxies[0].get());
         if (mDump)
             dump(buffer, bytesToTransfer, kDumpAlsaInputFile);
     } else {
         alsa::applyGain(buffer, mGain, bytesToTransfer, mConfig.value().format, mConfig->channels);
-        for (size_t i = 0; i < mAlsaDeviceProxies.size(); ++i) {
-            LOG(VERBOSE) << __func__ << ": writing into sink " << i;
-            ssize_t framesWritten = mSinks[i]->write(buffer, frameCount);
-            LOG_IF(FATAL, framesWritten < 0) << "Error writing into the pipe: " << framesWritten;
-            if (ssize_t framesLost = static_cast<ssize_t>(frameCount) - framesWritten;
-                framesLost > 0) {
-                LOG(WARNING) << __func__ << ": sink " << i << " incomplete data sent, dropping "
-                             << framesLost << " frames";
-            }
-            maxLatency = std::max(maxLatency, proxy_get_latency(mAlsaDeviceProxies[i].get()));
+        for (auto& proxy : mAlsaDeviceProxies) {
+            proxy_write_with_retries(proxy.get(), buffer, bytesToTransfer, mReadWriteRetries);
+            maxLatency = std::max(maxLatency, proxy_get_latency(proxy.get()));
         }
         if (mDump)
             dump(buffer, bytesToTransfer, kDumpAlsaOutputFile);
