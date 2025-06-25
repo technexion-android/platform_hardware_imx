@@ -28,6 +28,7 @@
 #include <aidl/android/hardware/graphics/composer3/DisplayContentSample.h>
 #include <aidl/android/hardware/graphics/composer3/DisplayIdentification.h>
 #include <aidl/android/hardware/graphics/composer3/HdrCapabilities.h>
+#include <aidl/android/hardware/graphics/composer3/OutputType.h>
 #include <aidl/android/hardware/graphics/composer3/PerFrameMetadataKey.h>
 #include <aidl/android/hardware/graphics/composer3/PowerMode.h>
 #include <aidl/android/hardware/graphics/composer3/ReadbackBufferAttributes.h>
@@ -51,11 +52,10 @@
 #include "Edid.h"
 #include "FencedBuffer.h"
 #include "FrameComposer.h"
+#include "HDCPThread.h"
 #include "Layer.h"
 #include "Time.h"
 #include "VsyncThread.h"
-#include "HDCPThread.h"
-
 
 namespace aidl::android::hardware::graphics::composer3::impl {
 

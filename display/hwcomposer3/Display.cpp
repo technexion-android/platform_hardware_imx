@@ -1075,6 +1075,7 @@ HWC3::Error Display::getDisplayConfigurations(int32_t /*maxFrameIntervalNs*/,
         config.dpi = {static_cast<float>(cfg.getDpiX()), static_cast<float>(cfg.getDpiY())};
         config.configGroup = cfg.getConfigGroup();
         config.vsyncPeriod = cfg.getVsyncPeriod();
+        config.hdrOutputType = OutputType::SYSTEM;
 
         outConfigs->emplace_back(config);
     }
