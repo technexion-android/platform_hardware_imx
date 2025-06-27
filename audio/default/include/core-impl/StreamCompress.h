@@ -27,6 +27,12 @@
 
 namespace aidl::android::hardware::audio::core {
 
+#define COMPRESS_OFFLOAD_DEFAULT_CHANNELS   2
+#define COMPRESS_OFFLOAD_FRAGMENT_SIZE      3840
+#define COMPRESS_OFFLOAD_NUM_FRAGMENTS      2
+#define COMPRESS_OFFLOAD_BUFFER_SIZE        7680
+#define COMPRESS_OFFLOAD_LATENCY_MS         96
+
 class StreamCompress : public StreamCommonImpl {
   public:
     StreamCompress(

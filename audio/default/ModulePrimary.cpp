@@ -70,6 +70,12 @@ ndk::ScopedAStatus ModulePrimary::calculateBufferSizeFrames(
         const ::aidl::android::media::audio::common::AudioFormatDescription& format,
         int32_t latencyMs, int32_t sampleRateHz, int32_t* bufferSizeFrames) {
     if (format.type != ::aidl::android::media::audio::common::AudioFormatType::PCM &&
+        format.encoding == ::android::MEDIA_MIMETYPE_AUDIO_MPEG) {
+        *bufferSizeFrames = COMPRESS_OFFLOAD_BUFFER_SIZE;
+        return ndk::ScopedAStatus::ok();
+    }
+
+    if (format.type != ::aidl::android::media::audio::common::AudioFormatType::PCM &&
         StreamOffloadStub::getSupportedEncodings().count(format.encoding)) {
         *bufferSizeFrames = sampleRateHz / 2;  // 1/2 of a second.
         return ndk::ScopedAStatus::ok();
