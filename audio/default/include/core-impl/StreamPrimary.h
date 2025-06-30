@@ -30,6 +30,8 @@
 
 namespace aidl::android::hardware::audio::core {
 
+#define DSD_BUFFER_SIZE 262144
+
 class StreamPrimary : public StreamAlsa {
   public:
     StreamPrimary(StreamContext* context, const Metadata& metadata);

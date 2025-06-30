@@ -76,6 +76,12 @@ ndk::ScopedAStatus ModulePrimary::calculateBufferSizeFrames(
     }
 
     if (format.type != ::aidl::android::media::audio::common::AudioFormatType::PCM &&
+        format.encoding == "audio/vnd.sony.dsd") {
+        *bufferSizeFrames = DSD_BUFFER_SIZE;
+        return ndk::ScopedAStatus::ok();
+    }
+
+    if (format.type != ::aidl::android::media::audio::common::AudioFormatType::PCM &&
         StreamOffloadStub::getSupportedEncodings().count(format.encoding)) {
         *bufferSizeFrames = sampleRateHz / 2;  // 1/2 of a second.
         return ndk::ScopedAStatus::ok();
