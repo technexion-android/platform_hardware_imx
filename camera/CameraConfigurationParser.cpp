@@ -134,6 +134,7 @@ const char* const kMaxWidth = "MaxWidth";
 const char* const kMaxHeight = "MaxHeight";
 const char* const kMinWidth = "MinWidth";
 const char* const kMinHeight = "MinHeight";
+const char* const kNeedDewarp = "NeedDewarp";
 const char* const kGivenResKey = "GivenRes";
 const char* const kGivenResWidthKey = "width";
 const char* const kGivenResHeightKey = "height";
@@ -496,9 +497,15 @@ bool ParseCharacteristics(CameraDefinition* camera, const Json::Value& root,
     else
         static_meta[cam_index].mMinHeight = 0;
 
-    ALOGI("%s: res min %dx%d, max %dx%d", __func__, static_meta[cam_index].mMinWidth,
+    if (root.isMember(kNeedDewarp)) {
+        int needDewarp = strtol(root[kNeedDewarp].asString().c_str(), NULL, 10);
+        static_meta[cam_index].mNeedDewarp = (needDewarp != 0);
+    } else
+        static_meta[cam_index].mNeedDewarp = false;
+
+    ALOGI("%s: res min %dx%d, max %dx%d, needDewarp %d", __func__, static_meta[cam_index].mMinWidth,
           static_meta[cam_index].mMinHeight, static_meta[cam_index].mMaxWidth,
-          static_meta[cam_index].mMaxHeight);
+          static_meta[cam_index].mMaxHeight, static_meta[cam_index].mNeedDewarp);
 
     int given_res_index = 0;
     for (Json::ValueConstIterator resIter = root[kGivenResKey].begin();

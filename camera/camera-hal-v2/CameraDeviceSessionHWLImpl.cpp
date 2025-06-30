@@ -181,6 +181,16 @@ status_t CameraDeviceSessionHwlImpl::Initialize(uint32_t camera_id,
     mPictureResolutionCount = pDev->mPictureResolutionCount;
     memcpy(mPictureResolutions, pDev->mPictureResolutions, MAX_RESOLUTION_SIZE * sizeof(int));
 
+    memset(&mDewarpBuf, 0, sizeof(mDewarpBuf));
+    if (mSensorData.mNeedDewarp) {
+        ret = AllocPhyBuffer(mMaxWidth, mMaxHeight, m_libcamera_stream_format, mDewarpBuf, true);
+        if (ret) {
+            ALOGE("%s:%d AllocPhyBuffer for mDewarpBuf failed, width %d, height %d, format 0x%x",
+                  __func__, __LINE__, mMaxWidth, mMaxHeight, m_libcamera_stream_format);
+            return BAD_VALUE;
+        }
+    }
+
     camera_->acquire();
     camera_->requestCompleted.connect(this, &CameraDeviceSessionHwlImpl::requestComplete);
 
@@ -224,6 +234,9 @@ CameraDeviceSessionHwlImpl::~CameraDeviceSessionHwlImpl() {
         camera_->requestCompleted.disconnect();
         camera_->release();
     }
+
+    if (mDewarpBuf.buffer)
+        FreePhyBuffer(mDewarpBuf.buffer);
 }
 
 PipelineInfo *CameraDeviceSessionHwlImpl::GetPipelineInfo(uint32_t id) {
@@ -1841,14 +1854,29 @@ void CameraDeviceSessionHwlImpl::requestComplete(libcamera::Request *request) {
     }
     libcamera::FrameBuffer *frameBuffer = request->findBuffer(mLibCameraStream);
     ImxImageBuffer srcImgBuf = mFrameBufferHandleMap[frameBuffer];
+
     ImxStreamBuffer srcBuf;
     memcpy(&srcBuf, &srcImgBuf, sizeof(srcImgBuf));
     srcBuf.mStream = new ImxStream(m_libcamera_stream_width, m_libcamera_stream_height,
                                    m_libcamera_stream_format, srcBuf.mUsage, 0, false);
     ALOGV("srcBuf %dx%d, 0x%x", srcBuf.mWidth, srcBuf.mHeight, srcBuf.mFormat);
 
-    ProcessCapbuf2MultiOutbuf(&srcBuf, hwReq->output_buffers, frameRequest->outBufferFences,
-                              requestMeta);
+    if (!mSensorData.mNeedDewarp) {
+        ProcessCapbuf2MultiOutbuf(&srcBuf, hwReq->output_buffers, frameRequest->outBufferFences,
+                                  requestMeta);
+    } else {
+        ImxStreamBuffer dewarpStreamBuf;
+        memcpy(&dewarpStreamBuf, &mDewarpBuf, sizeof(mDewarpBuf));
+        dewarpStreamBuf.mStream =
+                new ImxStream(m_libcamera_stream_width, m_libcamera_stream_height,
+                              m_libcamera_stream_format, mDewarpBuf.mUsage, 0, false);
+
+        handleFrame(dewarpStreamBuf, srcBuf, ENG_OCLCVT, mDebug);
+        ProcessCapbuf2MultiOutbuf(&dewarpStreamBuf, hwReq->output_buffers,
+                                  frameRequest->outBufferFences, requestMeta);
+
+        delete dewarpStreamBuf.mStream;
+    }
 
     delete srcBuf.mStream;
 

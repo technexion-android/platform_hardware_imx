@@ -342,6 +342,9 @@ private:
     uint32_t maxStreamWidth = 0;
     uint32_t maxStreamHeight = 0;
 
+    // dewarp on ox03c10
+    ImxImageBuffer mDewarpBuf;
+
 public:
     int32_t m_raw_v4l2_format = -1;
     int8_t m_color_arrange = -1;
