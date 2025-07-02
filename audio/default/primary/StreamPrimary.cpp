@@ -109,6 +109,7 @@ void StreamPrimary::tryStart(){
         mStarted = false;
     } else {
         mStarted = true;
+        mFirstTransfer = true;
     }
 }
 
@@ -323,6 +324,9 @@ void StreamPrimary::stop() {
     if (mDump && !mIsInput)
         dump(buffer, frameCount * mFrameSizeBytes, kDumpPrimaryOutputFile);
 
+    if (mFirstTransfer)
+        LOG(DEBUG) << __func__ << ": Start first transfer " << frameCount << " frames.";
+
     if (mIsStereoToMono) {
         if (mIsInput) {
             auto dst = static_cast<int16_t*>(buffer);
@@ -394,6 +398,11 @@ void StreamPrimary::stop() {
             StreamAlsa::transfer(buffer, frameCount, actualFrameCount, latencyMs));
 
 done:
+    if (mFirstTransfer) {
+        mFirstTransfer = false;
+        LOG(DEBUG) << __func__ << ": End first transfer " << *actualFrameCount << " frames.";
+    }
+
     if (mDump && mIsInput)
         dump(buffer, frameCount * mFrameSizeBytes, kDumpPrimaryInputFile);
     LOG(VERBOSE) << __func__ << ": end transfer: " << *actualFrameCount;
