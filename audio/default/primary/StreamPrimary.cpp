@@ -63,7 +63,6 @@ StreamPrimary::StreamPrimary(StreamContext* context, const Metadata& metadata)
     : StreamAlsa(context, metadata, 3 /*readWriteRetries*/),
       mIsAsynchronous(!!getContext().getAsyncCallback()),
       mStubDriver(getContext()) {
-    context->startStreamDataProcessor();
     mSavedConfig = mConfig;
     auto flags = getContext().getFlags();
     if (flags.getTag() == AudioIoFlags::Tag::output) {
@@ -76,6 +75,8 @@ StreamPrimary::StreamPrimary(StreamContext* context, const Metadata& metadata)
             mDirectOutput = false;
         }
     }
+    if (!mDirectOutput)
+        context->startStreamDataProcessor();
     ALOGD("%s: mPrimaryOutput: %d, mDirectOutput: %d", __func__, mPrimaryOutput, mDirectOutput);
     if (mDump) {
         std::ofstream ifile(kDumpPrimaryInputFile, std::ios::trunc);
