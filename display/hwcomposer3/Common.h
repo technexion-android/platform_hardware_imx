@@ -123,7 +123,7 @@ bool IsOverlayUserDisabled();
 bool Is2DCompositionUserDisabled();
 bool Is2DCompositionUserPrefered();
 bool IsHdcpUserEnabled();
-std::string getHdcpStatusPath();
+std::string getHdcpInfoPath();
 std::string getFramebufferFormat();
 
 bool customizeGUIResolution(uint32_t& width, uint32_t& height, uint32_t* uiType);

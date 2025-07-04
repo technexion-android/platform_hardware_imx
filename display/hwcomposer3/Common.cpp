@@ -56,9 +56,9 @@ bool IsHdcpUserEnabled() {
     return hdcp == "enable";
 }
 
-std::string getHdcpStatusPath() {
-    std::string status_path = ::android::base::GetProperty("vendor.hdcp_status_path", "");
-    DEBUG_LOG("%s: property vendor.hdcp_status_path is %s", __FUNCTION__, status_path.c_str());
+std::string getHdcpInfoPath() {
+    std::string status_path = ::android::base::GetProperty("vendor.hdcp_info_path", "");
+    DEBUG_LOG("%s: property vendor.hdcp_info_path is %s", __FUNCTION__, status_path.c_str());
     return status_path;
 }
 

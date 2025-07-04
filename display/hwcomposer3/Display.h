@@ -139,6 +139,8 @@ public:
     HWC3::Error notifyExpectedPresent(const ClockMonotonicTimestamp& expectedPresentTime,
                                       int32_t frameIntervalNs);
 
+    HWC3::Error startHdcpNegotiation(const aidl::android::hardware::drm::HdcpLevels& levels);
+
     // Non HWCComposer3 interface.
     int64_t getHwcId() const { return mId; }
     uint32_t getId() const { return mDisplayId; }
@@ -167,8 +169,14 @@ public:
     HWC3::Error checkAndWaitNextVsync(int64_t* timestamp);
 
     using HDCPThreadCallback = std::function<void (Display*)>;
-    void setHDCPCallback(const HDCPThreadCallback& callback);
-    void setHDCPThreadEnable(bool enable);
+    void setHdcpCallback(const HDCPThreadCallback& callback);
+    void setHdcpThreadEnable(bool enable);
+
+    using HdcpChangedCallback = std::function<void(long /* displayId */,
+                                                   bool state,
+                                                   aidl::android::hardware::drm::HdcpLevels /* levels */)>;
+    void setHdcpState(bool state);
+    void setHdcpChangedCallback(const HdcpChangedCallback& callback);
 private:
     bool hasConfig(int32_t configId) const;
     DisplayConfig* getConfig(int32_t configId);
@@ -192,9 +200,9 @@ private:
     std::string mName;
     PowerMode mPowerMode = PowerMode::OFF;
     bool mVsyncStarted = false;
-    bool mHDCPStarted = false;
+    bool mHdcpStarted = false;
     VsyncThread mVsyncThread;
-    HDCPThread mHDCPThread;
+    HDCPThread mHdcpThread;
     FencedBuffer mClientTarget;
     FencedBuffer mReadbackBuffer;
     // Will only be non-null after the Display has been validated and

@@ -93,9 +93,9 @@ Display::Display(FrameComposer* composer, int64_t id, uint32_t displayId, uint32
         mDisplayId(displayId),
         mPort(port),
         mVsyncThread(this),
-        mHDCPThread(this) {
+        mHdcpThread(this) {
     mVsyncStarted = false;
-    mHDCPStarted = false;
+    mHdcpStarted = false;
     setLegacyEdid();
 }
 
@@ -141,9 +141,9 @@ HWC3::Error Display::init(const std::vector<DisplayConfig>& configs, int32_t act
     }
 
     if (IsHdcpUserEnabled()) {
-        if (!mHDCPStarted) {
-            mHDCPThread.start();
-            mHDCPStarted = true;
+        if (!mHdcpStarted) {
+            mHdcpThread.start();
+            mHdcpStarted = true;
         }
     }
     return HWC3::Error::None;
@@ -1095,12 +1095,48 @@ HWC3::Error Display::notifyExpectedPresent(const ClockMonotonicTimestamp& expect
     return HWC3::Error::Unsupported;
 }
 
-void Display::setHDCPCallback(const HDCPThreadCallback& callback) {
-    mHDCPThread.setCallbacks(callback);
+void Display::setHdcpCallback(const HDCPThreadCallback& callback) {
+    mHdcpThread.setCallbacks(callback);
 }
 
-void Display::setHDCPThreadEnable(bool enable) {
-    mHDCPThread.setHDCPThreadEnabled(enable);
+void Display::setHdcpThreadEnable(bool enable) {
+    mHdcpThread.setHdcpThreadEnabled(enable);
+}
+
+void Display::setHdcpChangedCallback(const HdcpChangedCallback& callback) {
+    mHdcpThread.setHdcpChangedCallback(callback);
+}
+
+void Display::setHdcpState(bool state) {
+    mHdcpThread.setHdcpState(state);
+}
+
+HWC3::Error Display::startHdcpNegotiation(const aidl::android::hardware::drm::HdcpLevels& levels) {
+   DEBUG_LOG("%s: hwc display:%" PRId64, __FUNCTION__, mId);
+
+   /* check if display support hdcp */
+   if (IsHdcpUserEnabled()) {
+       aidl::android::hardware::drm::HdcpLevel connectedLevel = levels.connectedLevel;
+       aidl::android::hardware::drm::HdcpLevel maxLevel = levels.maxLevel;
+       aidl::android::hardware::drm::HdcpLevels curLevels;
+       mHdcpThread.getHdcpLevels(curLevels);
+       if (curLevels.connectedLevel < connectedLevel || curLevels.maxLevel > maxLevel) {
+           ALOGE("%s current display doesn't meet the hdcp requirement from framework , current level:%d, excepted level: %d",
+                     __FUNCTION__, curLevels.connectedLevel, connectedLevel);
+           return HWC3::Error::Unsupported;
+       } else {
+           // start hdcp
+           setHdcpState(true);
+           auto ret = mComposer->startHdcp(this);
+           if (ret != HWC3::Error::None) {
+               ALOGE("%s: hwc display:%" PRId64 " cannot get Vsync timestamp", __FUNCTION__, mId);
+           }
+           return ret;
+       }
+   } else {
+       DEBUG_LOG("%s, current device doesn't support hdcp", __FUNCTION__);
+       return HWC3::Error::Unsupported;
+   }
 }
 
 } // namespace aidl::android::hardware::graphics::composer3::impl

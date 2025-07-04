@@ -186,14 +186,15 @@ HWC3::Error ClientFrameComposer::unregisterOnHotplugCallback() {
     return HWC3::Error::None;
 }
 
-void ClientFrameComposer::HDCPThreadCallback(Display* display) {
+void ClientFrameComposer::hdcpAuthSuccessCallback(Display* display) {
     auto [error, client] = getDeviceClient(display->getId());
     if (error != HWC3::Error::None) {
         ALOGE("%s: display:%d cannot find Drm Client", __FUNCTION__, display->getId());
         return;
     }
-    client->setSecureMode(display->getId(), 0, false);
-    display->setHDCPThreadEnable(false);
+    client->setSecureMode(display->getId(), false);
+    display->setHdcpThreadEnable(false);
+    display->setHdcpState(false);
 }
 
 HWC3::Error ClientFrameComposer::onDisplayCreate(Display* display) {
@@ -223,11 +224,15 @@ HWC3::Error ClientFrameComposer::onDisplayCreate(Display* display) {
     // set hdcp thread callback
     if (mHdcpEnabled) {
         auto Callback = [this](Display* display) {
-            return HDCPThreadCallback(display);
+            return hdcpAuthSuccessCallback(display);
         };
-        display->setHDCPCallback(Callback);
-        display->setHDCPThreadEnable(true);
-        client->setSecureMode(displayId, 0, true);
+        display->setHdcpCallback(Callback);
+        if (mHdcpChangedCallback.has_value()) {
+            display->setHdcpChangedCallback(*mHdcpChangedCallback);
+        }
+        display->setHdcpThreadEnable(true);
+        display->setHdcpState(true);
+        client->setSecureMode(displayId, true);
     }
 
     return HWC3::Error::None;
@@ -510,6 +515,8 @@ HWC3::Error ClientFrameComposer::presentDisplay(
     if (layersForOverlay.size() > 0) {
         client->partialCleanCacheBuffer(static_cast<uint32_t>(layersForOverlay.size()));
     }
+
+    bool hasSecureLayer = false;
     for (auto& [planeId, layer] : layersForOverlay) {
         auto handle = layer->waitAndGetBuffer(); // wait for layer buffer ready
         common::Rect rectFrame = layer->getDisplayFrame();
@@ -529,16 +536,18 @@ HWC3::Error ClientFrameComposer::presentDisplay(
             layer->setHdrMetadataState(LAYER_HDR_METADATA_STATE_PROCESSED);
         }
 
-        if (mHdcpEnabled) {
+        if (!hasSecureLayer && mHdcpEnabled) {
             HandleInfo info;
             auto buff = layer->getBuffer().getBuffer();
             if (buff && (getInfoFromHandle(buff, &info) == 0) &&
                 (info.usage & GRALLOC_USAGE_PROTECTED)) {
-                client->setSecureMode(displayId, planeId, true);
-            } else {
-                client->setSecureMode(displayId, planeId, false);
+                hasSecureLayer = true;
             }
         }
+    }
+    if (!hasSecureLayer && mHdcpEnabled && layersForOverlay.size() > 0) {
+        client->setSecureMode(displayId, false);
+        display->setHdcpState(false);
     }
 
     if (layersForComposition.size() > 0) {
@@ -836,5 +845,22 @@ HWC3::Error ClientFrameComposer::waitHardwareVsyncTimestamp(Display* display, in
     }
 
     return client->waitVBlank(displayId, timestamp);
+}
+
+HWC3::Error ClientFrameComposer::startHdcp(Display* display) {
+    const auto displayId = display->getId();
+    DEBUG_LOG("%s display:%d", __FUNCTION__, displayId);
+    auto [error, client] = getDeviceClient(displayId);
+    if (error != HWC3::Error::None) {
+        ALOGE("%s: display:%d cannot find Drm Client", __FUNCTION__, displayId);
+        return error;
+    }
+    client->setSecureMode(displayId, true);
+    return HWC3::Error::None;
+}
+
+HWC3::Error ClientFrameComposer::registerOnHdcpChangedCallback(const HdcpChangedCallback& cb) {
+    mHdcpChangedCallback = cb;
+    return HWC3::Error::None;
 }
 } // namespace aidl::android::hardware::graphics::composer3::impl

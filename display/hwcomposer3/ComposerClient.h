@@ -238,6 +238,7 @@ private:
     HWC3::Error destroyDisplayLocked(int64_t hwcId) EXCLUSIVE_LOCKS_REQUIRED(mDisplaysMutex);
 
     HWC3::Error handleHotplug(bool connected, std::unique_ptr<HalMultiConfigs> halConfigs);
+    HWC3::Error handleHdcpChanged(long displayId, bool hdcpState, aidl::android::hardware::drm::HdcpLevels levels);
 
     std::mutex mDisplaysMutex;
     std::map<int64_t, std::shared_ptr<Display>> mDisplays GUARDED_BY(mDisplaysMutex);

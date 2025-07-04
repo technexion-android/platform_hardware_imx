@@ -157,6 +157,17 @@ HWC3::Error ComposerClient::init() {
         return error;
     }
 
+    const auto HdcpChangedCallback = [this](long displayId,
+                                            bool hdcpState,
+                                            aidl::android::hardware::drm::HdcpLevels levels) {
+        handleHdcpChanged(displayId, hdcpState, levels);
+    };
+    error = mComposer->registerOnHdcpChangedCallback(HdcpChangedCallback);
+    if (error != HWC3::Error::None) {
+        ALOGE("%s failed to register hdcpchanged callback", __FUNCTION__);
+        return error;
+    }
+
     error = createDisplaysLocked();
     if (error != HWC3::Error::None) {
         ALOGE("%s failed to create displays.", __FUNCTION__);
@@ -717,12 +728,12 @@ ndk::ScopedAStatus ComposerClient::getMaxLayerPictureProfiles(int64_t hwcId, int
 }
 
 ndk::ScopedAStatus ComposerClient::startHdcpNegotiation(
-        int64_t hwcId, const aidl::android::hardware::drm::HdcpLevels& /*levels*/) {
+        int64_t hwcId, const aidl::android::hardware::drm::HdcpLevels& levels) {
     DEBUG_LOG("%s", __FUNCTION__);
 
     GET_DISPLAY_OR_RETURN_ERROR();
 
-    return ToBinderStatus(HWC3::Error::Unsupported);
+    return ToBinderStatus(display->startHdcpNegotiation(levels));
 }
 
 ndk::ScopedAStatus ComposerClient::getLuts(int64_t hwcId, const std::vector<Buffer>&,
@@ -1586,6 +1597,23 @@ HWC3::Error ComposerClient::handleHotplug(bool connected,
         }
     }
 
+    return HWC3::Error::None;
+}
+
+HWC3::Error ComposerClient::handleHdcpChanged(long displayId,
+                                              bool hdcpState,
+                                              aidl::android::hardware::drm::HdcpLevels levels) {
+    if (!mCallbacks) {
+        return HWC3::Error::None;
+    }
+    if (hdcpState) {
+        mCallbacks->onHdcpLevelsChanged(displayId, levels);
+    } else {
+        aidl::android::hardware::drm::HdcpLevels noneLevels;
+        noneLevels.connectedLevel = aidl::android::hardware::drm::HdcpLevel::HDCP_NONE;
+        noneLevels.maxLevel = levels.maxLevel;
+        mCallbacks->onHdcpLevelsChanged(displayId, noneLevels);
+    }
     return HWC3::Error::None;
 }
 
