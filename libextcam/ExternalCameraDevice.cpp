@@ -554,6 +554,7 @@ status_t ExternalCameraDevice::initDefaultCharsKeys(
                                             ANDROID_LENS_FOCUS_DISTANCE,
                                             ANDROID_NOISE_REDUCTION_MODE,
                                             ANDROID_SCALER_CROP_REGION,
+                                            ANDROID_SENSOR_SENSITIVITY,
                                             ANDROID_SENSOR_TEST_PATTERN_MODE,
                                             ANDROID_STATISTICS_FACE_DETECT_MODE,
                                             ANDROID_STATISTICS_HOT_PIXEL_MAP_MODE};

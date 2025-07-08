@@ -35,6 +35,7 @@ ExternalISPWrapper::ExternalISPWrapper(int32_t fd) : m_fd(fd) {
     m_lastAfMode = ANDROID_CONTROL_AF_MODE_AUTO;
 
     m_lastExposureTime = 0;
+    m_lastExposureGain = 0;
     m_lastFocusDistance = 0.0f;
 }
 
@@ -194,18 +195,14 @@ int32_t ExternalISPWrapper::processAeMode(uint8_t mode, bool force) {
 
 int32_t ExternalISPWrapper::processExposureTime(int64_t exposureTime) {
     int32_t ret = 0;
-    int32_t value = INT32_MAX;
 
     if (exposureTime == m_lastExposureTime)
         return 0;
 
     v4l2_queryctrl queryctrl;
     ret = queryV4L2Control(m_fd, V4L2_CID_EXPOSURE_ABSOLUTE, queryctrl);
-    if (ret == 0) {
-        (void)getV4L2ControlValue(m_fd, V4L2_CID_EXPOSURE_ABSOLUTE, value);
-    } else {
+    if (ret != 0)
         return -1;
-    }
 
     if (exposureTime > queryctrl.maximum)
         exposureTime = queryctrl.maximum;
@@ -223,6 +220,37 @@ int32_t ExternalISPWrapper::processExposureTime(int64_t exposureTime) {
     }
 
     m_lastExposureTime = exposureTime;
+
+    return 0;
+}
+
+int32_t ExternalISPWrapper::processExposureGain(int32_t exposureGain) {
+    int32_t ret = 0;
+
+    if (exposureGain == m_lastExposureGain)
+        return 0;
+
+    v4l2_queryctrl queryctrl;
+    ret = queryV4L2Control(m_fd, V4L2_CID_GAIN, queryctrl);
+    if (ret != 0)
+        return -1;
+
+    // first disable AEC
+    processAeMode(ANDROID_CONTROL_AE_MODE_OFF);
+
+    // [1 10] maps to [0 255], step 1.
+    int32_t gainAbsolute = static_cast<int>(
+            (exposureGain - 1) * (queryctrl.maximum - queryctrl.minimum) / 9 + queryctrl.minimum);
+
+    ret = setV4L2ControlValue(m_fd, V4L2_CID_GAIN, gainAbsolute);
+    if (ret != 0) {
+        ALOGE("%s, Failed to set gainAbsolute %d", __func__, gainAbsolute);
+        return -1;
+    }
+    ALOGI("%s: Setting exposureGain from %d to %d, gainAbsolute: %d", __func__, m_lastExposureGain,
+          exposureGain, gainAbsolute);
+
+    m_lastExposureGain = exposureGain;
 
     return 0;
 }
@@ -264,18 +292,14 @@ int32_t ExternalISPWrapper::processAfMode(uint8_t mode, bool force) {
 
 int32_t ExternalISPWrapper::processFocusDistance(float focusDistance) {
     int32_t ret = 0;
-    int32_t value = INT32_MAX;
 
     if (focusDistance == m_lastFocusDistance)
         return 0;
 
     v4l2_queryctrl queryctrl;
     ret = queryV4L2Control(m_fd, V4L2_CID_FOCUS_ABSOLUTE, queryctrl);
-    if (ret == 0) {
-        (void)getV4L2ControlValue(m_fd, V4L2_CID_FOCUS_ABSOLUTE, value);
-    } else {
+    if (ret != 0)
         return -1;
-    }
 
     // (0.0f ~ 10.0f) maps to [0 255], step 5.
     int32_t focusAbsolute = static_cast<int>(
@@ -320,6 +344,12 @@ int32_t ExternalISPWrapper::process(CameraMetadata& meta) {
     entry = meta.find(ANDROID_SENSOR_EXPOSURE_TIME);
     if (entry.count > 0) {
         (void)processExposureTime(entry.data.i64[0]);
+    }
+
+    // ExposureGain
+    entry = meta.find(ANDROID_SENSOR_SENSITIVITY);
+    if (entry.count > 0) {
+        (void)processExposureGain(entry.data.i32[0]);
     }
 
     // AF

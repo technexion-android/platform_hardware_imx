@@ -1063,6 +1063,10 @@ status_t ExternalCameraDeviceSession::initDefaultRequests() {
     const uint8_t controlMode = ANDROID_CONTROL_MODE_AUTO;
     UPDATE(md, ANDROID_CONTROL_MODE, &controlMode, 1);
 
+    // Ref value from GCH EmulatedCamera
+    int32_t sensitivity = 1000;
+    UPDATE(md, ANDROID_SENSOR_SENSITIVITY, &sensitivity, 1);
+
     for (const auto& type : ndk::enum_range<RequestTemplate>()) {
         common::V1_0::helper::CameraMetadata mdCopy = md;
         uint8_t intent = ANDROID_CONTROL_CAPTURE_INTENT_PREVIEW;
