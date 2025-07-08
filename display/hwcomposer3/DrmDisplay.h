@@ -27,6 +27,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <android-base/properties.h>
 
 #include "Common.h"
 #include "DeviceComposer.h"
@@ -105,6 +106,10 @@ public:
             mOriginalHwcId = mHwcId;
             mIsPrimary = true;
             mHwcId = DEFAULT_HWC_PRIMARY_DISPLAY_ID;
+
+            // set primary display supportHdcp property
+            ::android::base::SetProperty("vendor.hwc.primarydisplay.support_hdcp",
+                                         mConnector->getHDCPSupported() == true ? "1": "0");
         } else {
             mHwcId = mOriginalHwcId;
             mIsPrimary = false;
