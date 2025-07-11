@@ -33,6 +33,9 @@
 
 using namespace cameraconfigparser;
 namespace android {
+std::map<CameraDeviceSessionHwlImpl *, sp<CameraDeviceSessionHwlImpl::ImgProcThread>>
+        CameraDeviceSessionHwlImpl::sessionThreadMap;
+Mutex CameraDeviceSessionHwlImpl::sessionThreadMapLock;
 
 static uint32_t importCount;
 static uint32_t freeCount;
@@ -192,10 +195,23 @@ status_t CameraDeviceSessionHwlImpl::Initialize(uint32_t camera_id,
     }
 
     camera_->acquire();
-    camera_->requestCompleted.connect(this, &CameraDeviceSessionHwlImpl::requestComplete);
+    camera_->requestCompleted.connect(this, &CameraDeviceSessionHwlImpl::requestCompleteDispatch);
 
     property_get("ro.boot.soc_type", mSocType, "");
     ALOGI("%s: mSocType :%s \n", __FUNCTION__, mSocType);
+
+    sessionThreadMapLock.lock();
+    auto iter = sessionThreadMap.find(this);
+    if (iter == sessionThreadMap.end()) {
+        sp<ImgProcThread> imgProcThread = new ImgProcThread(this);
+        sessionThreadMap[this] = imgProcThread;
+        ALOGI("%s: bind session %p to task %p, tid %d", __func__, this, imgProcThread.get(),
+              imgProcThread->getTid());
+    } else {
+        ALOGW("%s: unexpected! session %p has task %p", __func__, this,
+              sessionThreadMap[this].get());
+    }
+    sessionThreadMapLock.unlock();
 
     return OK;
 }
@@ -218,6 +234,21 @@ CameraDeviceSessionHwlImpl::CameraDeviceSessionHwlImpl(PhysicalMetaMapPtr physic
 
 CameraDeviceSessionHwlImpl::~CameraDeviceSessionHwlImpl() {
     ALOGI("%s: this %p, camera_ %p, %p", __func__, this, camera_.get());
+
+    sessionThreadMapLock.lock();
+    auto iter = sessionThreadMap.find(this);
+    if (iter != sessionThreadMap.end()) {
+        sp<ImgProcThread> imgProcThread = sessionThreadMap[this];
+        if (imgProcThread != NULL) {
+            imgProcThread->requestExitAndWait();
+            ALOGI("%s, task %p, tid %d, exited for session %p", __func__, imgProcThread.get(),
+                  imgProcThread->getTid(), this);
+        }
+        sessionThreadMap.erase(iter);
+    } else {
+        ALOGW("%s: unexpected! session %p has no task", __func__, this);
+    }
+    sessionThreadMapLock.unlock();
 
     if (mJpegBuilder != NULL)
         mJpegBuilder.clear();
@@ -718,14 +749,14 @@ void CameraDeviceSessionHwlImpl::WaitRequestsFinishAndCleanResource() {
     /*==== step 1: wait all the requests finished ====*/
     // For ov5640, destroy pipeline right after config/build pipeline.
     if ((mFrameBuffersFree.size() == 0) && (mFrameBuffersBusy.size() == 0)) {
-        ALOGI("%s: no request submitted, just return", __func__);
+        ALOGI("%s: no request submitted in session %p, just return", __func__, this);
         return;
     }
 
     /* If still has on-fly requests from map_frame_request, wait to finish */
     while (mDeQueRequestIdx != mInQueRequestIdx) {
-        ALOGW("%s: still has requests to process, wait %d us, DeQueIdx %lu, InQueIdx %lu", __func__,
-              WAIT_ITVL_US, mDeQueRequestIdx, mInQueRequestIdx);
+        ALOGW("%s: still has requests to process, wait %d us, DeQueIdx %lu, InQueIdx %lu, session %p",
+              __func__, WAIT_ITVL_US, mDeQueRequestIdx, mInQueRequestIdx, this);
         mLock.unlock();
         usleep(WAIT_ITVL_US);
         mLock.lock();
@@ -1451,9 +1482,9 @@ status_t CameraDeviceSessionHwlImpl::SubmitRequests(uint32_t frame_number,
     // DumpRequest();
     mInQueRequestIdx++;
 
-    if (mDebug) {
-        ALOGI("%s: mInQueRequestIdx %lu, mDeQueRequestIdx %lu, requestList size %zu", __func__,
-              mInQueRequestIdx, mDeQueRequestIdx, requestList.size());
+    if (mDebug || (mInQueRequestIdx <= 5)) {
+        ALOGI("%s: session %p, mInQueRequestIdx %lu, mDeQueRequestIdx %lu, requestList size %zu",
+              __func__, this, mInQueRequestIdx, mDeQueRequestIdx, requestList.size());
         ItvlStat(mPreSubmitRequestTime, (char *)"SubmitRequests");
     }
 
@@ -1750,6 +1781,38 @@ void CameraDeviceSessionHwlImpl::ReturnFrameBufferLocked() {
     return;
 }
 
+void CameraDeviceSessionHwlImpl::requestCompleteDispatch(libcamera::Request *request) {
+    if (mDebug)
+        ALOGI("%s: dispatch session %p to task %p, tid %d", __func__, this,
+              sessionThreadMap[this].get(), sessionThreadMap[this]->getTid());
+
+    Mutex::Autolock _l(mRequestPendingListLock);
+    mRequestPendingList.push_back(request);
+    mRequestPendingListCond.signal();
+    return;
+}
+
+int CameraDeviceSessionHwlImpl::HandleImage() {
+    mRequestPendingListLock.lock();
+    while (mRequestPendingList.empty()) {
+        mRequestPendingListCond.waitRelative(mRequestPendingListLock, WAIT_TIME_OUT);
+        if (mRequestPendingList.empty()) {
+            if (mDebug)
+                ALOGW("%s: mRequestPendingList still empty after %lld ns", __func__, WAIT_TIME_OUT);
+            mRequestPendingListLock.unlock();
+            return 0;
+        }
+    }
+
+    libcamera::Request *request = mRequestPendingList.front();
+    mRequestPendingList.pop_front();
+    mRequestPendingListLock.unlock();
+
+    requestComplete(request);
+
+    return 0;
+}
+
 void CameraDeviceSessionHwlImpl::requestComplete(libcamera::Request *request) {
     if (request == NULL) {
         ALOGE("%s: request NULL", __func__);
@@ -1841,10 +1904,10 @@ void CameraDeviceSessionHwlImpl::requestComplete(libcamera::Request *request) {
 
     if (mDebug) {
         libcamera::ControlList &metadata = request->metadata();
-        ALOGI("%s: frame %d, output_buffers %lu, result->regsult_metadata %p, entry count %d, libcamera::Request buffers %lu, sequence %u, metadata size %lu",
+        ALOGI("%s: frame %d, output_buffers %lu, result->regsult_metadata %p, entry count %d, libcamera::Request buffers %lu, sequence %u, metadata size %lu, session %p",
               __func__, frame, result->output_buffers.size(), result->result_metadata.get(),
               (int)result->result_metadata->GetEntryCount(), request->buffers().size(),
-              request->sequence(), metadata.size());
+              request->sequence(), metadata.size(), this);
         for (libcamera::ControlList::iterator it = metadata.begin(); it != metadata.end(); it++) {
             int i = it->first;
             libcamera::ControlValue ctlVal = it->second;
@@ -1903,9 +1966,9 @@ void CameraDeviceSessionHwlImpl::requestComplete(libcamera::Request *request) {
     }
 
     mDeQueRequestIdx++;
-    if (mDebug)
-        ALOGI("%s: mInQueRequestIdx %lu, mDeQueRequestIdx %lu", __func__, mInQueRequestIdx,
-              mDeQueRequestIdx);
+    if (mDebug || (mDeQueRequestIdx <= 5))
+        ALOGI("%s: session %p, mInQueRequestIdx %lu, mDeQueRequestIdx %lu", __func__, this,
+              mInQueRequestIdx, mDeQueRequestIdx);
 
     ReturnFrameBufferLocked();
 

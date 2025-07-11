@@ -218,7 +218,6 @@ private:
     status_t PickConfigStreamLocked(uint32_t pipeline_id, uint8_t intent);
     int HandleIntent(HwlPipelineRequest *hwReq);
 
-    int HandleImage();
     status_t CapAndFeed(uint32_t frame, FrameRequest *frameRequest);
     void DumpRequest();
     void ReleaseFrameRequest(FrameRequest &frameRequest);
@@ -344,6 +343,41 @@ private:
 
     // dewarp on ox03c10
     ImxImageBuffer mDewarpBuf;
+
+    // process multi-cameras in multi-threads
+    class ImgProcThread : public Thread {
+    public:
+        ImgProcThread(CameraDeviceSessionHwlImpl *pSession) : Thread(false), mSession(pSession) {}
+
+        virtual void onFirstRef() { run("ImgProcThread", PRIORITY_URGENT_DISPLAY); }
+
+        virtual status_t readyToRun() {
+            ALOGI("ImgProcThread, readyToRun");
+            return 0;
+        }
+
+        virtual bool threadLoop() {
+            int ret = mSession->HandleImage();
+            if (ret != OK) {
+                ALOGI("%s exit...", __func__);
+                return false;
+            }
+            return true;
+        }
+
+    private:
+        CameraDeviceSessionHwlImpl *mSession;
+    };
+
+    int HandleImage();
+    std::list<libcamera::Request *> mRequestPendingList;
+    Mutex mRequestPendingListLock;
+    Condition mRequestPendingListCond;
+
+    void requestCompleteDispatch(libcamera::Request *request);
+
+    static std::map<CameraDeviceSessionHwlImpl *, sp<ImgProcThread>> sessionThreadMap;
+    static Mutex sessionThreadMapLock;
 
 public:
     int32_t m_raw_v4l2_format = -1;
