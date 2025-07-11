@@ -87,8 +87,13 @@ bool isValidPowerMode(PowerMode mode) {
 
 } // namespace
 
-Display::Display(FrameComposer* composer, int64_t id, uint32_t displayId)
-      : mComposer(composer), mId(id), mDisplayId(displayId), mVsyncThread(this), mHDCPThread(this) {
+Display::Display(FrameComposer* composer, int64_t id, uint32_t displayId, uint32_t port)
+      : mComposer(composer),
+        mId(id),
+        mDisplayId(displayId),
+        mPort(port),
+        mVsyncThread(this),
+        mHDCPThread(this) {
     mVsyncStarted = false;
     mHDCPStarted = false;
     setLegacyEdid();
@@ -127,7 +132,7 @@ HWC3::Error Display::init(const std::vector<DisplayConfig>& configs, int32_t act
 
     const auto& activeConfig = it->second;
     const auto activeConfigString = activeConfig.toString();
-    ALOGI("%s hwc display:%" PRId64 " with config:%s", __FUNCTION__, mId,
+    ALOGI("%s hwc display:%" PRId64 "(port=0x%x) with config:%s", __FUNCTION__, mId, mPort,
           activeConfigString.c_str());
 
     if (!mVsyncStarted) {
@@ -322,7 +327,7 @@ HWC3::Error Display::getDisplayIdentificationData(DisplayIdentification* outIden
         return HWC3::Error::BadParameter;
     }
 
-    outIdentification->port = static_cast<int8_t>(mDisplayId);
+    outIdentification->port = static_cast<int8_t>(mPort);
     outIdentification->data = mEdid;
 
     return HWC3::Error::None;

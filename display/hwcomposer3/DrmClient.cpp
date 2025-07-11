@@ -132,6 +132,7 @@ HWC3::Error DrmClient::getDisplayConfigs(std::vector<HalMultiConfigs>* configs) 
         configs->emplace_back(HalMultiConfigs{
                 .hwcId = display->getHwcId(),
                 .displayId = display->getId(),
+                .port = display->getPort(),
                 .activeConfigId = display->getActiveConfigId(),
                 .configs = display->getDisplayConfigs(),
         });
@@ -421,6 +422,7 @@ bool DrmClient::handleHotplug() {
             std::unique_ptr<HalMultiConfigs> cfg(new HalMultiConfigs{
                     .hwcId = display->getHwcId(),
                     .displayId = display->getId(),
+                    .port = display->getPort(),
                     .activeConfigId = display->getActiveConfigId(),
                     .configs = display->getDisplayConfigs(),
             });

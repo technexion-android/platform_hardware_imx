@@ -63,7 +63,7 @@ class FrameComposer;
 
 class Display {
 public:
-    Display(FrameComposer* composer, int64_t id, uint32_t displayId);
+    Display(FrameComposer* composer, int64_t id, uint32_t displayId, uint32_t port);
     ~Display();
 
     Display(const Display& display) = delete;
@@ -188,6 +188,7 @@ private:
     std::shared_ptr<IComposerCallback> mCallbacks;
     const int64_t mId;
     const uint32_t mDisplayId;
+    const uint32_t mPort;
     std::string mName;
     PowerMode mPowerMode = PowerMode::OFF;
     bool mVsyncStarted = false;

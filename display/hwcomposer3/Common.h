@@ -98,6 +98,7 @@ using HalConfig = std::unordered_map<uint32_t, HalDisplayConfig>;
 struct HalMultiConfigs {
     uint32_t hwcId;
     uint32_t displayId;
+    uint32_t port;
     int32_t activeConfigId;
     std::shared_ptr<HalConfig> configs;
 };

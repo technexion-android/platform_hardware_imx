@@ -1436,7 +1436,8 @@ HWC3::Error ComposerClient::createDisplaysLocked() {
     }
 
     for (const auto& iter : displays) {
-        error = createDisplayLocked(iter.hwcId, iter.displayId, iter.activeConfigId, iter.configs);
+        error = createDisplayLocked(iter.hwcId, iter.displayId, iter.port, iter.activeConfigId,
+                                    iter.configs);
         if (error != HWC3::Error::None) {
             ALOGE("%s failed to create display from config", __FUNCTION__);
             return error;
@@ -1446,7 +1447,7 @@ HWC3::Error ComposerClient::createDisplaysLocked() {
     return HWC3::Error::None;
 }
 
-HWC3::Error ComposerClient::createDisplayLocked(int64_t hwcId, uint32_t displayId,
+HWC3::Error ComposerClient::createDisplayLocked(int64_t hwcId, uint32_t displayId, uint32_t port,
                                                 int32_t activeConfigId,
                                                 const std::vector<DisplayConfig>& configs) {
     DEBUG_LOG("%s", __FUNCTION__);
@@ -1460,7 +1461,7 @@ HWC3::Error ComposerClient::createDisplayLocked(int64_t hwcId, uint32_t displayI
     Display* display;
     std::shared_ptr<Display> hwcDisplay;
     if (mDisplays.find(hwcId) == mDisplays.end()) {
-        hwcDisplay = std::make_shared<Display>(mComposer, hwcId, displayId);
+        hwcDisplay = std::make_shared<Display>(mComposer, hwcId, displayId, port);
         display = hwcDisplay.get();
         if (display == nullptr) {
             ALOGE("%s failed to allocate hwc display", __FUNCTION__);
@@ -1550,6 +1551,7 @@ HWC3::Error ComposerClient::handleHotplug(bool connected,
 
     const int64_t hwcId = static_cast<int64_t>(halConfigs->hwcId);
     const uint32_t displayId = halConfigs->displayId;
+    const uint32_t port = halConfigs->port;
 
     if (connected) {
         const int32_t configId = halConfigs->activeConfigId;
@@ -1567,12 +1569,12 @@ HWC3::Error ComposerClient::handleHotplug(bool connected,
 
         {
             std::lock_guard<std::mutex> lock(mDisplaysMutex);
-            createDisplayLocked(hwcId, displayId, configId, configs);
+            createDisplayLocked(hwcId, displayId, port, configId, configs);
         }
 
         auto& cfg = (*(halConfigs->configs))[static_cast<uint32_t>(configId)];
-        ALOGI("Connecting display:%d hwcId:%ld, w:%d, h:%d, dpiX:%d, dpiY:%d, fps:%d", displayId,
-              hwcId, cfg.width, cfg.height, cfg.dpiX, cfg.dpiY, cfg.refreshRateHz);
+        ALOGI("Connecting display:%d hwcId:%ld, port:0x%x, w:%d, h:%d, dpiX:%d, dpiY:%d, fps:%d",
+              displayId, hwcId, port, cfg.width, cfg.height, cfg.dpiX, cfg.dpiY, cfg.refreshRateHz);
         mCallbacks->onHotplug(hwcId, /*connected=*/true);
     } else {
         ALOGI("Disconnecting display:%d", displayId);

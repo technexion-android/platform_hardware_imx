@@ -229,8 +229,10 @@ private:
     // displays.
     HWC3::Error createDisplaysLocked() EXCLUSIVE_LOCKS_REQUIRED(mDisplaysMutex);
     // Creates a display with the given properties.
-    HWC3::Error createDisplayLocked(int64_t hwcId, uint32_t displayId, int32_t activeConfigId,
-                                    const std::vector<DisplayConfig>& configs) EXCLUSIVE_LOCKS_REQUIRED(mDisplaysMutex);
+    HWC3::Error createDisplayLocked(int64_t hwcId, uint32_t displayId, uint32_t port,
+                                    int32_t activeConfigId,
+                                    const std::vector<DisplayConfig>& configs)
+            EXCLUSIVE_LOCKS_REQUIRED(mDisplaysMutex);
 
     HWC3::Error destroyDisplaysLocked() EXCLUSIVE_LOCKS_REQUIRED(mDisplaysMutex);
     HWC3::Error destroyDisplayLocked(int64_t hwcId) EXCLUSIVE_LOCKS_REQUIRED(mDisplaysMutex);
