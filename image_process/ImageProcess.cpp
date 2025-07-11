@@ -35,6 +35,8 @@ extern "C" {
 #include <linux/pxp_device.h>
 }
 
+#include <pthread.h>
+
 #if defined(__LP64__)
 #define LIB_PATH1 "/system/lib64"
 #define LIB_PATH2 "/vendor/lib64"
@@ -109,6 +111,13 @@ bool ImageProcess::getDefaultG2DLib(char *libName, int size) {
 
     ALOGI("Default g2d lib: %s, mbVIVG2D %d", libName, mbVIVG2D);
     return true;
+}
+
+void ImageProcess::FreeOclHandle(void *handle) {
+    OCL_HANDLE hOcl = (OCL_HANDLE)handle;
+    ALOGI("%s: hOcl %p", __func__, hOcl);
+    ImageProcess::getInstance()->m_ocl_close(hOcl);
+    return;
 }
 
 ImageProcess *ImageProcess::getInstance() {
@@ -213,7 +222,6 @@ ImageProcess::ImageProcess()
     mImxOclCvtModule = dlopen(path, RTLD_NOW);
     if (mImxOclCvtModule == NULL) {
         ALOGW("%s:, dlopen %s failed", __func__, path);
-        mHOcl = NULL;
         m_ocl_open = NULL;
         m_ocl_setParam = NULL;
         m_ocl_getParam = NULL;
@@ -226,38 +234,31 @@ ImageProcess::ImageProcess()
         m_ocl_convert = (ocl_convert)dlsym(mImxOclCvtModule, "OCL_Convert");
         m_ocl_close = (ocl_close)dlsym(mImxOclCvtModule, "OCL_Close");
 
-        ret = (*m_ocl_open)(OCL_OPEN_FLAG_PROFILE, &mHOcl);
-        if (ret != 0) {
-            mHOcl = NULL;
-            ALOGW("%s: m_ocl_open failed, ret %d", __func__, ret);
-        }
-        ALOGI("%s: mHOcl %p", __func__, mHOcl);
         char socType[128] = {0};
         property_get("ro.boot.soc_type", socType, "");
         if (!strncmp(socType, "imx9", 4))
             mOclBufferType = OCL_MEM_TYPE_DEVICE;
+
+        pthread_key_create(&m_ocl_key, FreeOclHandle);
     }
 
     memset(&mWarpBuffer, 0, sizeof(mWarpBuffer));
     memset(&m_warp_param, 0, sizeof(m_warp_param));
 
-    if (mHOcl) {
+    if (mImxOclCvtModule) {
         ret = read_warp_coordinates_file(DEWARP_COORD_FILE, &m_warp_param);
         if (ret) {
             ALOGW("%s: read_warp_coordinates_file failed, ret %d", __func__, ret);
         } else {
             ALOGI("%s: read_warp_coordinates_file ok", __func__);
             m_warp_param.enable = 1;
-            m_ocl_setParam(mHOcl, OCL_PARAM_INDEX_WARP_PARAM, &m_warp_param);
         }
     }
 }
 
 ImageProcess::~ImageProcess() {
-    if (mHOcl) {
-        m_ocl_close(mHOcl);
-        mHOcl = NULL;
-    }
+    if (mImxOclCvtModule)
+        pthread_key_delete(m_ocl_key);
 
     if (mImxOclCvtModule)
         dlclose(mImxOclCvtModule);
@@ -1144,7 +1145,13 @@ void ImageProcess::ImxImageBufferToOclBuffer(ImxImageBuffer &imxImgBuf, OCL_BUFF
     memset(&plane_info, 0, sizeof(plane_info));
     plane_info.ocl_format = &oclFmt;
 
-    ret = m_ocl_getParam(mHOcl, OCL_PARAM_INDEX_FORMAT_PLANE_INFO, &plane_info);
+    OCL_HANDLE hOcl = (OCL_HANDLE)pthread_getspecific(m_ocl_key);
+    if (hOcl == NULL) {
+        ALOGE("%s: unexpected hOcl NULL", __func__);
+        return;
+    }
+
+    ret = m_ocl_getParam(hOcl, OCL_PARAM_INDEX_FORMAT_PLANE_INFO, &plane_info);
     if (ret) {
         ALOGE("%s: m_ocl_getParam OCL_PARAM_INDEX_FORMAT_PLANE_INFO failed, ret %d", __func__, ret);
         return;
@@ -1226,8 +1233,21 @@ static void ImxImageBufferToOclFormat(ImxImageBuffer &imxImgBuf, OCL_FORMAT &ocl
 int ImageProcess::ConvertImageByOclCvt(ImxImageBuffer &dstBuf, ImxImageBuffer &srcBuf) {
     int ret = 0;
 
-    if (mHOcl == NULL) {
-        return BAD_VALUE;
+    OCL_HANDLE hOcl = (OCL_HANDLE)pthread_getspecific(m_ocl_key);
+
+    // first time get, create ocl handle.
+    if (hOcl == NULL) {
+        ret = (*m_ocl_open)(OCL_OPEN_FLAG_PROFILE, &hOcl);
+        if ((ret != 0) || (hOcl == NULL)) {
+            ALOGW("%s: m_ocl_open failed, ret %d", __func__, ret);
+            return BAD_VALUE;
+        }
+
+        if (m_warp_param.enable == 1)
+            m_ocl_setParam(hOcl, OCL_PARAM_INDEX_WARP_PARAM, &m_warp_param);
+
+        ALOGI("%s: call pthread_setspecific, hOcl %p", __func__, hOcl);
+        pthread_setspecific(m_ocl_key, (void *)hOcl);
     }
 
     /* set format */
@@ -1237,17 +1257,16 @@ int ImageProcess::ConvertImageByOclCvt(ImxImageBuffer &dstBuf, ImxImageBuffer &s
     memset(&input_format, 0, sizeof(input_format));
     memset(&output_format, 0, sizeof(output_format));
 
-    Mutex::Autolock _l(mOclCvtLock);
     ImxImageBufferToOclFormat(srcBuf, input_format);
     ImxImageBufferToOclFormat(dstBuf, output_format);
 
-    ret = m_ocl_setParam(mHOcl, OCL_PARAM_INDEX_INPUT_FORMAT, &input_format);
+    ret = m_ocl_setParam(hOcl, OCL_PARAM_INDEX_INPUT_FORMAT, &input_format);
     if (ret) {
         ALOGE("%s: m_ocl_setParam OCL_PARAM_INDEX_INPUT_FORMAT failed, ret %d", __func__, ret);
         return ret;
     }
 
-    ret = m_ocl_setParam(mHOcl, OCL_PARAM_INDEX_OUTPUT_FORMAT, &output_format);
+    ret = m_ocl_setParam(hOcl, OCL_PARAM_INDEX_OUTPUT_FORMAT, &output_format);
     if (ret) {
         ALOGE("%s: m_ocl_setParam OCL_PARAM_INDEX_OUTPUT_FORMAT failed, ret %d", __func__, ret);
         return ret;
@@ -1263,14 +1282,14 @@ int ImageProcess::ConvertImageByOclCvt(ImxImageBuffer &dstBuf, ImxImageBuffer &s
     ImxImageBufferToOclBuffer(srcBuf, inBuffer, input_format);
     ImxImageBufferToOclBuffer(dstBuf, outBuffer, output_format);
 
-    ret = m_ocl_convert(mHOcl, &inBuffer, &outBuffer);
+    ret = m_ocl_convert(hOcl, &inBuffer, &outBuffer);
     if (ret) {
         ALOGE("%s: m_ocl_convert failed, ret %d", __func__, ret);
         return ret;
     }
 
     OCL_RUN_TIME time;
-    ret = m_ocl_getParam(mHOcl, OCL_PARAM_INDEX_RUN_TIME, &time);
+    ret = m_ocl_getParam(hOcl, OCL_PARAM_INDEX_RUN_TIME, &time);
     if (mDebug)
         ALOGI("%s: m_ocl_convert, ret %d, src: res %dx%d, fmt %d, dst: res %dx%d, fmt %d, run_time: %d us, kernel_time: %d us\n",
               __func__, ret, input_format.width, input_format.height, input_format.format,

@@ -82,6 +82,8 @@ private:
     int ConvertImageByOclCvt(ImxImageBuffer& dst, ImxImageBuffer& src);
     void ImxImageBufferToOclBuffer(ImxImageBuffer& imxImgBuf, OCL_BUFFER& oclBuf,
                                    OCL_FORMAT& oclFmt);
+    static void FreeOclHandle(void* handle);
+
     int probe_warp_header(FILE* fp, uint32_t file_size, OCL_WARP_PARAM* warp_param);
     int read_warp_coordinates_file(const char* file_name, OCL_WARP_PARAM* warp_param);
 
@@ -131,13 +133,12 @@ private:
     OCL_MEMORY_TYPE mOclBufferType;
 
     void* mImxOclCvtModule;
-    OCL_HANDLE mHOcl;
+    pthread_key_t m_ocl_key;
     ocl_open m_ocl_open;
     ocl_setParam m_ocl_setParam;
     ocl_getParam m_ocl_getParam;
     ocl_convert m_ocl_convert;
     ocl_close m_ocl_close;
-    Mutex mOclCvtLock;
 
     OCL_WARP_PARAM m_warp_param;
     ImxImageBuffer mWarpBuffer;
