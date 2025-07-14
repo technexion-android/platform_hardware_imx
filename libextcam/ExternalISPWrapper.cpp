@@ -37,6 +37,11 @@ ExternalISPWrapper::ExternalISPWrapper(int32_t fd) : m_fd(fd) {
     m_lastExposureTime = 0;
     m_lastExposureGain = 0;
     m_lastFocusDistance = 0.0f;
+
+    m_lastBrightness = 0;
+    m_lastContrast = 0.0f;
+    m_lastSaturation = 0.0f;
+    m_lastSharpLevel = 0;
 }
 
 ExternalISPWrapper::~ExternalISPWrapper() {}
@@ -87,6 +92,32 @@ static int32_t getV4L2ControlValue(int32_t fd, uint32_t controlId, int32_t& valu
           ctrl.value);
 
     return 0;
+}
+
+static int mapFloatToIntWithStep(float value, float in_min, float in_max, int out_min, int out_max,
+                                 int step) {
+    // Limit the input range
+    if (value < in_min)
+        value = in_min;
+    if (value > in_max)
+        value = in_max;
+
+    // Linear mapping to output interval
+    float ratio = (value - in_min) / (in_max - in_min);
+    int mappedValue = static_cast<int>(ratio * (out_max - out_min) + out_min + 0.5f);
+
+    // step alignment
+    if (step > 1) {
+        int remainder = (mappedValue - out_min) % step;
+        mappedValue -= remainder;
+    }
+    // Guaranteed boundaries
+    if (mappedValue < out_min)
+        mappedValue = out_min;
+    if (mappedValue > out_max)
+        mappedValue = out_max;
+
+    return mappedValue;
 }
 
 int32_t ExternalISPWrapper::enableAWB(bool enable) {
@@ -239,8 +270,9 @@ int32_t ExternalISPWrapper::processExposureGain(int32_t exposureGain) {
     processAeMode(ANDROID_CONTROL_AE_MODE_OFF);
 
     // [1 10] maps to [0 255], step 1.
-    int32_t gainAbsolute = static_cast<int>(
-            (exposureGain - 1) * (queryctrl.maximum - queryctrl.minimum) / 9 + queryctrl.minimum);
+    int32_t gainAbsolute =
+            mapFloatToIntWithStep(static_cast<float>(exposureGain), 1.0f, 10.0f, queryctrl.minimum,
+                                  queryctrl.maximum, queryctrl.step);
 
     ret = setV4L2ControlValue(m_fd, V4L2_CID_GAIN, gainAbsolute);
     if (ret != 0) {
@@ -302,11 +334,8 @@ int32_t ExternalISPWrapper::processFocusDistance(float focusDistance) {
         return -1;
 
     // (0.0f ~ 10.0f) maps to [0 255], step 5.
-    int32_t focusAbsolute = static_cast<int>(
-            (focusDistance / 10.0f) * (queryctrl.maximum - queryctrl.minimum) + queryctrl.minimum);
-    if (focusAbsolute % queryctrl.step != 0) {
-        focusAbsolute = focusAbsolute / queryctrl.step * queryctrl.step;
-    }
+    int32_t focusAbsolute = mapFloatToIntWithStep(focusDistance, 0.0f, 10.0f, queryctrl.minimum,
+                                                  queryctrl.maximum, queryctrl.step);
 
     ret = setV4L2ControlValue(m_fd, V4L2_CID_FOCUS_ABSOLUTE, focusAbsolute);
     if (ret != 0) {
@@ -319,6 +348,130 @@ int32_t ExternalISPWrapper::processFocusDistance(float focusDistance) {
 
     return 0;
 }
+
+int32_t ExternalISPWrapper::processBrightness(int32_t brightness, bool force) {
+    int32_t ret = 0;
+
+    if (brightness == m_lastBrightness && force == false)
+        return 0;
+
+    v4l2_queryctrl queryctrl;
+    ret = queryV4L2Control(m_fd, V4L2_CID_BRIGHTNESS, queryctrl);
+    if (ret != 0)
+        return -1;
+
+    // [-127 127] maps to [0 255], step 1.
+    int32_t brightnessAbsolute =
+            mapFloatToIntWithStep(static_cast<float>(brightness), -127.0f, 127.0f,
+                                  queryctrl.minimum, queryctrl.maximum, queryctrl.step);
+    if (force) {
+        brightnessAbsolute = queryctrl.default_value;
+    }
+
+    ret = setV4L2ControlValue(m_fd, V4L2_CID_BRIGHTNESS, brightnessAbsolute);
+    if (ret != 0) {
+        ALOGE("%s, Failed to set brightnessAbsolute %d", __func__, brightnessAbsolute);
+        return -1;
+    }
+    ALOGI("%s: Setting brightness from %d to %d, brightnessAbsolute: %d", __func__,
+          m_lastBrightness, brightness, brightnessAbsolute);
+    m_lastBrightness = brightness;
+
+    return 0;
+}
+
+int32_t ExternalISPWrapper::processContrast(float contrast, bool force) {
+    int32_t ret = 0;
+
+    if (contrast == m_lastContrast && force == false)
+        return 0;
+
+    v4l2_queryctrl queryctrl;
+    ret = queryV4L2Control(m_fd, V4L2_CID_CONTRAST, queryctrl);
+    if (ret != 0)
+        return -1;
+
+    // [0.0 1.99] maps to [0 255], step 1.
+    int32_t contrastAbsolute = mapFloatToIntWithStep(contrast, 0.0f, 1.99f, queryctrl.minimum,
+                                                     queryctrl.maximum, queryctrl.step);
+    if (force) {
+        contrastAbsolute = queryctrl.default_value;
+    }
+
+    ret = setV4L2ControlValue(m_fd, V4L2_CID_CONTRAST, contrastAbsolute);
+    if (ret != 0) {
+        ALOGE("%s, Failed to set contrastAbsolute %d", __func__, contrastAbsolute);
+        return -1;
+    }
+    ALOGI("%s: Setting contrast from %f to %f, contrastAbsolute: %d", __func__, m_lastContrast,
+          contrast, contrastAbsolute);
+    m_lastContrast = contrast;
+
+    return 0;
+}
+
+int32_t ExternalISPWrapper::processSaturation(float saturation, bool force) {
+    int32_t ret = 0;
+
+    if (saturation == m_lastSaturation && force == false)
+        return 0;
+
+    v4l2_queryctrl queryctrl;
+    ret = queryV4L2Control(m_fd, V4L2_CID_SATURATION, queryctrl);
+    if (ret != 0)
+        return -1;
+
+    // [0.0 1.99] maps to [0 255], step 1.
+    int32_t saturationAbsolute = mapFloatToIntWithStep(saturation, 0.0f, 1.99f, queryctrl.minimum,
+                                                       queryctrl.maximum, queryctrl.step);
+    if (force) {
+        saturationAbsolute = queryctrl.default_value;
+    }
+
+    ret = setV4L2ControlValue(m_fd, V4L2_CID_SATURATION, saturationAbsolute);
+    if (ret != 0) {
+        ALOGE("%s, Failed to set saturationAbsolute %d", __func__, saturationAbsolute);
+        return -1;
+    }
+    ALOGI("%s: Setting saturation from %f to %f, saturationAbsolute: %d", __func__,
+          m_lastSaturation, saturation, saturationAbsolute);
+    m_lastSaturation = saturation;
+
+    return 0;
+}
+
+int32_t ExternalISPWrapper::processSharpLevel(uint8_t sharpLevel, bool force) {
+    int32_t ret = 0;
+
+    if (sharpLevel == m_lastSharpLevel && force == false)
+        return 0;
+
+    v4l2_queryctrl queryctrl;
+    ret = queryV4L2Control(m_fd, V4L2_CID_SHARPNESS, queryctrl);
+    if (ret != 0)
+        return -1;
+
+    // [1 10] maps to [0 255], step 1.
+    int32_t sharpLevelAbsolute =
+            mapFloatToIntWithStep(static_cast<float>(sharpLevel), 1.0f, 10.0f, queryctrl.minimum,
+                                  queryctrl.maximum, queryctrl.step);
+    if (force) {
+        sharpLevelAbsolute = queryctrl.default_value;
+    }
+
+    ret = setV4L2ControlValue(m_fd, V4L2_CID_SHARPNESS, sharpLevelAbsolute);
+    if (ret != 0) {
+        ALOGE("%s, Failed to set sharpLevelAbsolute %d", __func__, sharpLevelAbsolute);
+        return -1;
+    }
+    ALOGI("%s: Setting sharpLevel from %u to %u, sharpLevelAbsolute: %d", __func__,
+          m_lastSharpLevel, sharpLevel, sharpLevelAbsolute);
+    m_lastSharpLevel = sharpLevel;
+
+    return 0;
+}
+
+using namespace android::hardware::camera::device::implementation;
 
 // Current tactic: don't return if some meta process failed,
 // since may have other meta to process.
@@ -362,6 +515,30 @@ int32_t ExternalISPWrapper::process(CameraMetadata& meta) {
     entry = meta.find(ANDROID_LENS_FOCUS_DISTANCE);
     if (entry.count > 0) {
         (void)processFocusDistance(entry.data.f[0]);
+    }
+
+    // brightness
+    entry = meta.find(EXT_BRIGHTNESS);
+    if (entry.count > 0) {
+        (void)processBrightness(entry.data.i32[0]);
+    }
+
+    // contrast
+    entry = meta.find(EXT_CONTRAST);
+    if (entry.count > 0) {
+        (void)processContrast(entry.data.f[0]);
+    }
+
+    // saturation
+    entry = meta.find(EXT_SATURATION);
+    if (entry.count > 0) {
+        (void)processSaturation(entry.data.f[0]);
+    }
+
+    // sharpLevel
+    entry = meta.find(EXT_SHARP_LEVEL);
+    if (entry.count > 0) {
+        (void)processSharpLevel(entry.data.u8[0]);
     }
 
     return 0;

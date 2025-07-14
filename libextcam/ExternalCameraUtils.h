@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2022 The Android Open Source Project
- * Copyright 2023 NXP.
+ * Copyright 2023, 2025 NXP.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@
 #include <CameraMetadata.h>
 #include <HandleImporter.h>
 #include <aidl/android/hardware/camera/common/Status.h>
+#include <aidl/android/hardware/camera/common/VendorTagSection.h>
 #include <aidl/android/hardware/camera/device/CaptureResult.h>
 #include <aidl/android/hardware/camera/device/ErrorCode.h>
 #include <aidl/android/hardware/camera/device/NotifyMsg.h>
@@ -367,6 +368,36 @@ public:
 private:
     std::vector<uint8_t> mData;
 };
+
+// Use vendor tag for brightness, contrast, saturation, share level.
+using ::aidl::android::hardware::camera::common::CameraMetadataType;
+using ::aidl::android::hardware::camera::common::VendorTagSection;
+
+static const uint32_t kImxTagIdOffset = VENDOR_SECTION_START;
+
+typedef enum enumImxExtTag {
+    EXT_BRIGHTNESS = kImxTagIdOffset,
+    EXT_CONTRAST,
+    EXT_SATURATION,
+    EXT_SHARP_LEVEL
+} ImxExtTag;
+
+const std::vector<VendorTagSection> kImxExtTagSections = {
+        {.sectionName = "ext",
+         .tags = {
+                 {.tagId = static_cast<int32_t>(EXT_BRIGHTNESS),
+                  .tagName = "brightness",
+                  .tagType = CameraMetadataType::INT32},
+                 {.tagId = static_cast<int32_t>(EXT_CONTRAST),
+                  .tagName = "contrast",
+                  .tagType = CameraMetadataType::FLOAT},
+                 {.tagId = static_cast<int32_t>(EXT_SATURATION),
+                  .tagName = "saturation",
+                  .tagType = CameraMetadataType::FLOAT},
+                 {.tagId = static_cast<int32_t>(EXT_SHARP_LEVEL),
+                  .tagName = "sharp.level",
+                  .tagType = CameraMetadataType::BYTE},
+         }}};
 
 } // namespace implementation
 } // namespace device

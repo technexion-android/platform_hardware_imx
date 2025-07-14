@@ -1321,6 +1321,12 @@ int ExternalCameraDeviceSession::configureV4l2StreamLocked(const SupportedV4L2Fo
     mOutputThread->m_IspWrapper->processAeMode(ANDROID_CONTROL_AE_MODE_ON, true);
     mOutputThread->m_IspWrapper->processAfMode(ANDROID_CONTROL_AF_MODE_AUTO, true);
 
+    // Force to set features controlled by vendortag, or colors may not be recovered
+    mOutputThread->m_IspWrapper->processBrightness(0, true);
+    mOutputThread->m_IspWrapper->processContrast(0.0f, true);
+    mOutputThread->m_IspWrapper->processSaturation(0.0f, true);
+    mOutputThread->m_IspWrapper->processSharpLevel(0, true);
+
     mV4l2StreamingFmt = v4l2Fmt;
     mV4l2Streaming = true;
     mOutputThread->mDecedFrames = 0; // new streaming start, source changed
