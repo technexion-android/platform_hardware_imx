@@ -179,6 +179,19 @@ int32_t ExternalISPWrapper::processAWB(uint8_t mode, bool force) {
             return -1;
     }
 
+    v4l2_queryctrl queryctrl;
+    ret = queryV4L2Control(m_fd, V4L2_CID_WHITE_BALANCE_TEMPERATURE, queryctrl);
+    if (ret != 0) {
+        ALOGE("%s, control 0x%08x not support!", __func__, V4L2_CID_EXPOSURE_ABSOLUTE);
+        m_lastAwbMode = mode;
+        return -1;
+    }
+
+    if (temperature > queryctrl.maximum)
+        temperature = queryctrl.maximum;
+    if (temperature < queryctrl.minimum)
+        temperature = queryctrl.minimum;
+
     ALOGI("%s, Setting white balance temperature to %dK for AWB mode %d", __func__, temperature,
           mode);
     ret = setV4L2ControlValue(m_fd, V4L2_CID_WHITE_BALANCE_TEMPERATURE, temperature);
@@ -217,6 +230,7 @@ int32_t ExternalISPWrapper::processAeMode(uint8_t mode, bool force) {
     ret = setV4L2ControlValue(m_fd, V4L2_CID_EXPOSURE_AUTO, autoExposureMode);
     if (ret != 0) {
         ALOGE("%s, Failed to set exposure mode %d", __func__, mode);
+        m_lastAeMode = mode;
         return -1;
     }
     m_lastAeMode = mode;
@@ -232,8 +246,11 @@ int32_t ExternalISPWrapper::processExposureTime(int64_t exposureTime) {
 
     v4l2_queryctrl queryctrl;
     ret = queryV4L2Control(m_fd, V4L2_CID_EXPOSURE_ABSOLUTE, queryctrl);
-    if (ret != 0)
+    if (ret != 0) {
+        ALOGE("%s, control 0x%08x not support!", __func__, V4L2_CID_EXPOSURE_ABSOLUTE);
+        m_lastExposureTime = exposureTime;
         return -1;
+    }
 
     if (exposureTime > queryctrl.maximum)
         exposureTime = queryctrl.maximum;
@@ -263,8 +280,11 @@ int32_t ExternalISPWrapper::processExposureGain(int32_t exposureGain) {
 
     v4l2_queryctrl queryctrl;
     ret = queryV4L2Control(m_fd, V4L2_CID_GAIN, queryctrl);
-    if (ret != 0)
+    if (ret != 0) {
+        ALOGE("%s, control 0x%08x not support!", __func__, V4L2_CID_GAIN);
+        m_lastExposureGain = exposureGain;
         return -1;
+    }
 
     // first disable AEC
     processAeMode(ANDROID_CONTROL_AE_MODE_OFF);
@@ -315,6 +335,7 @@ int32_t ExternalISPWrapper::processAfMode(uint8_t mode, bool force) {
     ret = setV4L2ControlValue(m_fd, V4L2_CID_FOCUS_AUTO, autoFocusMode);
     if (ret != 0) {
         ALOGE("%s, Failed to set focue mode %d", __func__, mode);
+        m_lastAfMode = mode;
         return -1;
     }
     m_lastAfMode = mode;
@@ -330,8 +351,11 @@ int32_t ExternalISPWrapper::processFocusDistance(float focusDistance) {
 
     v4l2_queryctrl queryctrl;
     ret = queryV4L2Control(m_fd, V4L2_CID_FOCUS_ABSOLUTE, queryctrl);
-    if (ret != 0)
+    if (ret != 0) {
+        ALOGE("%s, control 0x%08x not support!", __func__, V4L2_CID_FOCUS_ABSOLUTE);
+        m_lastFocusDistance = focusDistance;
         return -1;
+    }
 
     // (0.0f ~ 10.0f) maps to [0 255], step 5.
     int32_t focusAbsolute = mapFloatToIntWithStep(focusDistance, 0.0f, 10.0f, queryctrl.minimum,
@@ -357,8 +381,11 @@ int32_t ExternalISPWrapper::processBrightness(int32_t brightness, bool force) {
 
     v4l2_queryctrl queryctrl;
     ret = queryV4L2Control(m_fd, V4L2_CID_BRIGHTNESS, queryctrl);
-    if (ret != 0)
+    if (ret != 0) {
+        ALOGE("%s, control 0x%08x not support!", __func__, V4L2_CID_BRIGHTNESS);
+        m_lastBrightness = brightness;
         return -1;
+    }
 
     // [-127 127] maps to [0 255], step 1.
     int32_t brightnessAbsolute =
@@ -388,8 +415,11 @@ int32_t ExternalISPWrapper::processContrast(float contrast, bool force) {
 
     v4l2_queryctrl queryctrl;
     ret = queryV4L2Control(m_fd, V4L2_CID_CONTRAST, queryctrl);
-    if (ret != 0)
+    if (ret != 0) {
+        ALOGE("%s, control 0x%08x not support!", __func__, V4L2_CID_CONTRAST);
+        m_lastContrast = contrast;
         return -1;
+    }
 
     // [0.0 1.99] maps to [0 255], step 1.
     int32_t contrastAbsolute = mapFloatToIntWithStep(contrast, 0.0f, 1.99f, queryctrl.minimum,
@@ -418,8 +448,11 @@ int32_t ExternalISPWrapper::processSaturation(float saturation, bool force) {
 
     v4l2_queryctrl queryctrl;
     ret = queryV4L2Control(m_fd, V4L2_CID_SATURATION, queryctrl);
-    if (ret != 0)
+    if (ret != 0) {
+        ALOGE("%s, control 0x%08x not support!", __func__, V4L2_CID_SATURATION);
+        m_lastSaturation = saturation;
         return -1;
+    }
 
     // [0.0 1.99] maps to [0 255], step 1.
     int32_t saturationAbsolute = mapFloatToIntWithStep(saturation, 0.0f, 1.99f, queryctrl.minimum,
@@ -448,8 +481,11 @@ int32_t ExternalISPWrapper::processSharpLevel(uint8_t sharpLevel, bool force) {
 
     v4l2_queryctrl queryctrl;
     ret = queryV4L2Control(m_fd, V4L2_CID_SHARPNESS, queryctrl);
-    if (ret != 0)
+    if (ret != 0) {
+        ALOGE("%s, control 0x%08x not support!", __func__, V4L2_CID_SHARPNESS);
+        m_lastSharpLevel = sharpLevel;
         return -1;
+    }
 
     // [1 10] maps to [0 255], step 1.
     int32_t sharpLevelAbsolute =

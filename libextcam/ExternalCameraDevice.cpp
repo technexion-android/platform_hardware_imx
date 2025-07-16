@@ -398,12 +398,6 @@ status_t ExternalCameraDevice::initDefaultCharsKeys(
     const uint8_t aeAvailableModes[] = {ANDROID_CONTROL_AE_MODE_OFF, ANDROID_CONTROL_AE_MODE_ON};
     UPDATE(ANDROID_CONTROL_AE_AVAILABLE_MODES, aeAvailableModes, ARRAY_SIZE(aeAvailableModes));
 
-    // hard code for c930c
-    // V4L2_CID_EXPOSURE_ABSOLUTE(0x009a0902): minimum: 3, maximum: 2047, step: 1
-    int64_t exposureTimeRange[2] = {3, 2047};
-    UPDATE(ANDROID_SENSOR_INFO_EXPOSURE_TIME_RANGE, exposureTimeRange,
-           ARRAY_SIZE(exposureTimeRange));
-
     const uint8_t availableFffect = ANDROID_CONTROL_EFFECT_MODE_OFF;
     UPDATE(ANDROID_CONTROL_AVAILABLE_EFFECTS, &availableFffect, 1);
 
@@ -442,9 +436,6 @@ status_t ExternalCameraDevice::initDefaultCharsKeys(
 
     const uint8_t facing = ANDROID_LENS_FACING_EXTERNAL;
     UPDATE(ANDROID_LENS_FACING, &facing, 1);
-
-    const float focusDistance = 0.0f;
-    UPDATE(ANDROID_LENS_FOCUS_DISTANCE, &focusDistance, 1);
 
     // android.noiseReduction
     const uint8_t noiseReductionMode = ANDROID_NOISE_REDUCTION_MODE_OFF;
@@ -605,7 +596,7 @@ status_t ExternalCameraDevice::initDefaultCharsKeys(
 }
 
 status_t ExternalCameraDevice::initCameraControlsCharsKeys(
-        int, ::android::hardware::camera::common::V1_0::helper::CameraMetadata* metadata) {
+        int fd, ::android::hardware::camera::common::V1_0::helper::CameraMetadata* metadata) {
     // android.sensor.info.sensitivityRange   -> V4L2_CID_ISO_SENSITIVITY
     // android.sensor.info.exposureTimeRange  -> V4L2_CID_EXPOSURE_ABSOLUTE
     // android.sensor.info.maxFrameDuration   -> TBD
@@ -641,6 +632,26 @@ status_t ExternalCameraDevice::initCameraControlsCharsKeys(
     const float scalerAvailableMaxDigitalZoom[] = {1};
     UPDATE(ANDROID_SCALER_AVAILABLE_MAX_DIGITAL_ZOOM, scalerAvailableMaxDigitalZoom,
            ARRAY_SIZE(scalerAvailableMaxDigitalZoom));
+
+    // TODO: V4L2_CID_FOCUS_ABSOLUTE
+    const float focusDistance = 0.0f;
+    UPDATE(ANDROID_LENS_FOCUS_DISTANCE, &focusDistance, 1);
+
+    // Get the exposure time range
+    v4l2_queryctrl queryctrl = {0};
+    queryctrl.id = V4L2_CID_EXPOSURE_ABSOLUTE;
+
+    if (ioctl(fd, VIDIOC_QUERYCTRL, &queryctrl) != 0) {
+        ALOGW("%s, VIDIOC_QUERYCTRL for control 0x%08x failed: %s", __func__, queryctrl.id,
+              strerror(errno));
+    } else {
+        ALOGI("%s, VIDIOC_QUERYCTRL for control 0x%08x success, type:%u, name:%s,  minimum: %d, maximum: %d, step: %d,  default_value: %d",
+              __func__, queryctrl.id, queryctrl.type, queryctrl.name, queryctrl.minimum,
+              queryctrl.maximum, queryctrl.step, queryctrl.default_value);
+        int64_t exposureTimeRange[2] = {queryctrl.minimum, queryctrl.maximum};
+        UPDATE(ANDROID_SENSOR_INFO_EXPOSURE_TIME_RANGE, exposureTimeRange,
+               ARRAY_SIZE(exposureTimeRange));
+    }
 
     return OK;
 }
