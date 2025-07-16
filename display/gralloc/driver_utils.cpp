@@ -71,6 +71,7 @@ const format_info_t formats[] = {
                 .is_rgb = true,
                 .is_yuv = false,
         },
+#ifndef GPU_RGBA1010102_LIMITATION
         {
                 .id = static_cast<int32_t>(PixelFormat::RGBA_1010102),
                 .fourcc = DRM_FORMAT_ABGR2101010,
@@ -78,6 +79,7 @@ const format_info_t formats[] = {
                 .is_rgb = true,
                 .is_yuv = false,
         },
+#endif
         {
                 .id = static_cast<int32_t>(PixelFormat::YCBCR_422_SP), // NV16
                 .fourcc = DRM_FORMAT_NV16,
