@@ -50,7 +50,7 @@ extern "C" {
 #define G2DENGINE "libg2d"
 #define IMX_OCL_CONVERTER "lib_imx_opencl_converter.so"
 
-#define DEWARP_COORD_FILE "/vendor/etc/configs/ox03c_absolute_32bpp_dewarp_file.bin"
+#define DEWARP_COORD_FILE "/vendor/etc/configs/ox03c_absolute_32bpp_dewarp_file-1920x1280.bin"
 
 namespace fsl {
 
