@@ -26,7 +26,10 @@
 #include <libyuv/convert.h>
 #include <linux/ipu.h>
 #include <stdio.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <system/graphics.h>
+#include <unistd.h>
 #include <vndksupport/linker.h>
 
 #include "gralloc_handle.h"
@@ -173,9 +176,27 @@ ImageProcess::ImageProcess()
         mFinishEngine = (hwc_func1)dlsym(mG2dModule, "g2d_finish");
         mCopyEngine = (hwc_func4)dlsym(mG2dModule, "g2d_copy");
         mBlitEngine = (hwc_func3)dlsym(mG2dModule, "g2d_blit");
+        mQueryFeature = (hwc_query)dlsym(mG2dModule, "g2d_query_feature");
+        mSetWarpCord = (hwc_func2)dlsym(mG2dModule, "g2d_set_warp_coordinates");
+        mEnableEngine = (hwc_enable)dlsym(mG2dModule, "g2d_enable");
+        mDisableEngine = (hwc_disable)dlsym(mG2dModule, "g2d_disable");
+        mAlloc = (hwc_alloc)dlsym(mG2dModule, "g2d_alloc");
+        mFree = (hwc_free)dlsym(mG2dModule, "g2d_free");
+        mGetCoordFromDct =
+                (hwc_get_coord_from_dct)dlsym(mG2dModule, "g2d_get_warp_coordinates_from_dct_file");
+
         ret = mOpenEngine(&mG2dHandle);
         if (ret != 0) {
             mG2dHandle = NULL;
+        }
+    }
+
+    memset(&mDewarpCtx, 0, sizeof(mDewarpCtx));
+    if (mG2dHandle) {
+        int can_warp = 0;
+        mQueryFeature(mG2dHandle, G2D_WARP_DEWARP, &can_warp);
+        if (can_warp) {
+            PrepareDewarpBinary();
         }
     }
 
@@ -344,10 +365,11 @@ int ImageProcess::ConvertImage(ImxImageBuffer &dstBuf, ImxImageBuffer &srcBuf, I
     mDebug = debug;
     if (mDebug)
         ALOGI("%s: src: virt %p, phy 0x%lx, size %d, res %ux%u, format 0x%x, "
-              "dst: virt %p, phy 0x%lx, size %d, res %ux%u, format 0x%x, engine %d, ZoomRatio %f",
+              "dst: virt %p, phy 0x%lx, size %d, res %ux%u, format 0x%x, engine %d, ZoomRatio %f, dewarp %d",
               __func__, srcBuf.mVirtAddr, srcBuf.mPhyAddr, (int)srcBuf.mSize, srcBuf.mWidth,
               srcBuf.mHeight, srcBuf.mFormat, dstBuf.mVirtAddr, dstBuf.mPhyAddr, (int)dstBuf.mSize,
-              dstBuf.mWidth, dstBuf.mHeight, dstBuf.mFormat, engine, srcBuf.mZoomRatio);
+              dstBuf.mWidth, dstBuf.mHeight, dstBuf.mFormat, engine, srcBuf.mZoomRatio,
+              (int)srcBuf.mDewarp);
 
     // unify HAL_PIXEL_FORMAT_YCbCr_420_SP to HAL_PIXEL_FORMAT_YCBCR_420_888
     if (srcBuf.mFormat == HAL_PIXEL_FORMAT_YCbCr_420_SP) {
@@ -664,10 +686,15 @@ int ImageProcess::ConvertImageByG2DBlit(ImxImageBuffer &dstBuf, ImxImageBuffer &
     ALOGV("%s: crop from (%d, %d), size %dx%d, srcBuf.mFormatSize %d, mZoomRatio %f", __func__,
           crop_left, crop_top, crop_width, crop_height, (int)srcBuf.mFormatSize, srcBuf.mZoomRatio);
 
+    if (srcBuf.mDewarp && (!mDewarpCtx.enable)) {
+        ALOGW("%s: want to dewarp but mDewarpCtx.enable false", __func__);
+        return -EINVAL;
+    }
+
     if ((srcBuf.mFormat == dstBuf.mFormat) ||
         (srcBuf.mZoomRatio <= 1.0 &&
          (srcBuf.mWidth == dstBuf.mWidth &&
-          srcBuf.mHeight == dstBuf.mHeight))) { // just scale or just csc
+          srcBuf.mHeight == dstBuf.mHeight))) { // just scale or just csc or just dewarp
         d_surface.format = (g2d_format)convertPixelFormatToG2DFormat(dstBuf.mFormat);
         d_surface.planes[0] = (long)d_buf.buf_paddr;
         d_surface.planes[1] = (long)d_buf.buf_paddr + dstBuf.mStride * dstBuf.mHeight;
@@ -681,9 +708,18 @@ int ImageProcess::ConvertImageByG2DBlit(ImxImageBuffer &dstBuf, ImxImageBuffer &
         d_surface.rot = G2D_ROTATION_0;
 
         Mutex::Autolock _l(mG2dLock);
+        if (srcBuf.mDewarp && mDewarpCtx.enable) {
+            mEnableEngine(mG2dHandle, G2D_WARPING);
+            mSetWarpCord(mG2dHandle, &mDewarpCtx.coord);
+        }
+
         ret = mBlitEngine(g2dHandle, (void *)&s_surface, (void *)&d_surface);
         if (ret)
             return ret;
+
+        if (srcBuf.mDewarp && mDewarpCtx.enable) {
+            mDisableEngine(mG2dHandle, G2D_WARPING);
+        }
 
         mFinishEngine(g2dHandle);
     } else {
@@ -804,7 +840,8 @@ int ImageProcess::ConvertImageByG2D(ImxImageBuffer &dstBuf, ImxImageBuffer &srcB
     }
 
     if ((srcBuf.mFormat == dstBuf.mFormat) && (srcBuf.mWidth == dstBuf.mWidth) &&
-        (srcBuf.mHeight == dstBuf.mHeight) && (srcBuf.mZoomRatio <= 1.0)) {
+        (srcBuf.mHeight == dstBuf.mHeight) && (srcBuf.mZoomRatio <= 1.0) &&
+        (srcBuf.mDewarp == false)) {
         ret = ConvertImageByG2DCopy(dstBuf, srcBuf);
     } else {
         ret = ConvertImageByG2DBlit(dstBuf, srcBuf);
@@ -1243,7 +1280,7 @@ int ImageProcess::ConvertImageByOclCvt(ImxImageBuffer &dstBuf, ImxImageBuffer &s
             return BAD_VALUE;
         }
 
-        if (m_warp_param.enable == 1)
+        if ((m_warp_param.enable == 1) && srcBuf.mDewarp)
             m_ocl_setParam(hOcl, OCL_PARAM_INDEX_WARP_PARAM, &m_warp_param);
 
         ALOGI("%s: call pthread_setspecific, hOcl %p", __func__, hOcl);
@@ -1615,6 +1652,42 @@ int ImageProcess::read_warp_coordinates_file(const char *file_name, OCL_WARP_PAR
     }
 
     return ret;
+}
+
+int ImageProcess::PrepareDewarpBinary() {
+    int ret = 0;
+    struct stat statbuf;
+
+    ret = stat(DEWARP_COORD_FILE, &statbuf);
+    if (ret) {
+        ALOGI("%s: no dewarp file %s", __func__, DEWARP_COORD_FILE);
+        return -1;
+    }
+
+    ALOGI("%s: %s size is %ld", __func__, DEWARP_COORD_FILE, statbuf.st_size);
+    mDewarpCtx.g2d_coord_buf = mAlloc(statbuf.st_size, 0);
+    if (mDewarpCtx.g2d_coord_buf == NULL) {
+        ALOGI("%s: mAlloc size %ld failed", __func__, statbuf.st_size);
+        return -1;
+    }
+
+    ret = mGetCoordFromDct(mG2dHandle, DEWARP_COORD_FILE, mDewarpCtx.g2d_coord_buf,
+                           &mDewarpCtx.coord);
+    if (ret) {
+        ALOGI("%s: g2d_get_warp_coordinates_from_dct_file failed, ret %d", __func__, ret);
+        return ret;
+    }
+
+    ALOGI("%s: coord para: addr 0x%lx, format %d, bpp %d, width %d, height %d, x %u, y %u, xx %u, xy %u, yx %u, yy %u\n",
+          __func__, mDewarpCtx.coord.addr, mDewarpCtx.coord.format, mDewarpCtx.coord.bpp,
+          mDewarpCtx.coord.width, mDewarpCtx.coord.height, mDewarpCtx.coord.arb_start_x,
+          mDewarpCtx.coord.arb_start_y, mDewarpCtx.coord.arb_delta_xx,
+          mDewarpCtx.coord.arb_delta_xy, mDewarpCtx.coord.arb_delta_yx,
+          mDewarpCtx.coord.arb_delta_yy);
+
+    mDewarpCtx.enable = true;
+
+    return 0;
 }
 
 } // namespace fsl
