@@ -765,6 +765,9 @@ void CameraDeviceSessionHwlImpl::WaitRequestsFinishAndCleanResource() {
     ALOGI("%s: requests, mDeQueRequestIdx %lu, mInQueRequestIdx %lu", __func__, mDeQueRequestIdx,
           mInQueRequestIdx);
 
+    mInQueRequestIdx = 0;
+    mDeQueRequestIdx = 0;
+
     if (mFrameBuffersFree.size() != mSensorData.mLibcameraBuffers)
         ALOGW("%s: !!! unexpected, mFrameBuffersFree size %lu != %d", __func__,
               mFrameBuffersFree.size(), mSensorData.mLibcameraBuffers);
@@ -1965,12 +1968,12 @@ void CameraDeviceSessionHwlImpl::requestComplete(libcamera::Request *request) {
         }
     }
 
+    ReturnFrameBufferLocked();
+
     mDeQueRequestIdx++;
     if (mDebug || (mDeQueRequestIdx <= 5))
         ALOGI("%s: session %p, mInQueRequestIdx %lu, mDeQueRequestIdx %lu", __func__, this,
               mInQueRequestIdx, mDeQueRequestIdx);
-
-    ReturnFrameBufferLocked();
 
     return;
 }
