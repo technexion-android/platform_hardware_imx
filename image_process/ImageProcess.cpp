@@ -1507,7 +1507,8 @@ exit:
         ALOGI("%s: Get header data", __func__);
     } else {
         ALOGE("%s: No header size info", __func__);
-        warp_param->buf.planes[0].size = file_size;
+        if (warp_param)
+            warp_param->buf.planes[0].size = file_size;
     }
 
     return ret;
@@ -1577,7 +1578,8 @@ int ImageProcess::read_warp_coordinates_file(const char *file_name, OCL_WARP_PAR
             if (ret) {
                 ALOGE("%s: AllocPhyBuffer for mWarpBuffer failed, size %u, aligned_size %u", __func__,
                       size, aligned_size);
-                return -1;
+                ret = -1;
+                break;
             }
 
             ALOGI("%s: fd %d, size %u, aligned_size %u, vaddr %p", __func__, mWarpBuffer.mFd, size, aligned_size,
