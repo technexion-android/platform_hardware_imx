@@ -1937,7 +1937,8 @@ void CameraDeviceSessionHwlImpl::requestComplete(libcamera::Request *request) {
                 new ImxStream(m_libcamera_stream_width, m_libcamera_stream_height,
                               m_libcamera_stream_format, mDewarpBuf.mUsage, 0, false);
 
-        handleFrame(dewarpStreamBuf, srcBuf, ENG_OCLCVT, mDebug);
+        srcBuf.mDewarp = true;
+        handleFrame(dewarpStreamBuf, srcBuf, mSensorData.mDewarpEng, mDebug);
         ProcessCapbuf2MultiOutbuf(&dewarpStreamBuf, hwReq->output_buffers,
                                   frameRequest->outBufferFences, requestMeta);
 

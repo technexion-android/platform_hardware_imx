@@ -133,6 +133,7 @@ struct CameraSensorMetadata {
 
     // whether need dewarp
     bool mNeedDewarp;
+    ImxEngine mDewarpEng;
 };
 
 typedef std::unordered_map<uint32_t,

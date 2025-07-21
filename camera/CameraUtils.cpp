@@ -123,6 +123,7 @@ int32_t ImageBufferToStreamBuffer(ImxImageBuffer &imageBuffer, ImxStreamBuffer &
     streamBuffer.mFormatSize = imageBuffer.mFormatSize;
     streamBuffer.buffer = imageBuffer.buffer;
     stream->mZoomRatio = imageBuffer.mZoomRatio;
+    streamBuffer.mDewarp = imageBuffer.mDewarp;
 
     return 0;
 }
@@ -146,6 +147,7 @@ static int32_t StreamBufferToImageBuffer(ImxStreamBuffer &streamBuffer, ImxImage
     imageBuffer.mFormatSize = streamBuffer.mFormatSize;
     imageBuffer.buffer = streamBuffer.buffer;
     imageBuffer.mZoomRatio = stream->mZoomRatio;
+    imageBuffer.mDewarp = streamBuffer.mDewarp;
     imageBuffer.mUsage = stream->usage();
     imageBuffer.mPrivate = NULL;
 
@@ -158,6 +160,9 @@ int32_t handleFrame(ImxStreamBuffer &dstBuf, ImxStreamBuffer &srcBuf, ImxEngine 
 
     ImxImageBuffer imageBufferSrc;
     ImxImageBuffer imageBufferDst;
+
+    memset(&imageBufferSrc, 0, sizeof(imageBufferSrc));
+    memset(&imageBufferDst, 0, sizeof(imageBufferDst));
 
     StreamBufferToImageBuffer(srcBuf, imageBufferSrc);
     StreamBufferToImageBuffer(dstBuf, imageBufferDst);

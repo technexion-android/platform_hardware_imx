@@ -3341,6 +3341,9 @@ int ExternalCameraDeviceSession::OutputThread::handleFrame(
     ImxImageBuffer srcBuf;
     ImxImageBuffer dstBuf;
 
+    memset(&srcBuf, 0, sizeof(srcBuf));
+    memset(&dstBuf, 0, sizeof(dstBuf));
+
     uint32_t srcFmt = convertV4L2FormatToPixelFormat(src_fourcc);
     uint32_t dstFmt = convertV4L2FormatToPixelFormat(dst_fourcc);
 
