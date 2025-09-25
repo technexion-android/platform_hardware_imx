@@ -32,6 +32,9 @@
 static const char* VENDOR_LIBRARY_NAME = "libbt-vendor-fuzz.so";
 #else
 static const char* VENDOR_LIBRARY_NAME = "libbt-vendor.so";
+static const char* VENDOR_NXP_LIBRARY_NAME = "libbt-vendor-nxp.so";
+// The property key stores the vendor of wifi/bt module driver
+static constexpr char PROPERTY_BT_VENDOR[] = "vendor.all.wifi_bt_device";
 #endif
 static const char* VENDOR_LIBRARY_SYMBOL_NAME =
     "BLUETOOTH_VENDOR_LIB_INTERFACE";
@@ -197,9 +200,20 @@ bool VendorInterface::Open(InitializeCompleteCallback initialize_complete_cb,
 
   // Initialize vendor interface
 
-  lib_handle_ = dlopen(VENDOR_LIBRARY_NAME, RTLD_NOW);
+  char chip_type[PROPERTY_VALUE_MAX] = {0};
+  char vendor_lib_name[32] = {0};
+  strcpy(vendor_lib_name, VENDOR_LIBRARY_NAME);
+
+  if (property_get(PROPERTY_BT_VENDOR, chip_type, NULL)) {
+    if (!strncmp(chip_type, "NXP", 3)) {
+      strcpy(vendor_lib_name, VENDOR_NXP_LIBRARY_NAME);
+    }
+  }
+  ALOGI("%s: loading lib %s", __func__, vendor_lib_name);
+
+  lib_handle_ = dlopen(vendor_lib_name, RTLD_NOW);
   if (!lib_handle_) {
-    ALOGE("%s unable to open %s (%s)", __func__, VENDOR_LIBRARY_NAME,
+    ALOGE("%s unable to open %s (%s)", __func__, vendor_lib_name,
           dlerror());
     return false;
   }
@@ -208,7 +222,7 @@ bool VendorInterface::Open(InitializeCompleteCallback initialize_complete_cb,
       dlsym(lib_handle_, VENDOR_LIBRARY_SYMBOL_NAME));
   if (!lib_interface_) {
     ALOGE("%s unable to find symbol %s in %s (%s)", __func__,
-          VENDOR_LIBRARY_SYMBOL_NAME, VENDOR_LIBRARY_NAME, dlerror());
+          VENDOR_LIBRARY_SYMBOL_NAME, vendor_lib_name, dlerror());
     return false;
   }
 
