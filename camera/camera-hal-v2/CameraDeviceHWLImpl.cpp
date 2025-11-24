@@ -148,6 +148,8 @@ static int resCandidatePicture_ap1302[] = {320, 240, 640, 480, 1280, 720, 1280, 
 static int resCandidatePreview_ov5640[] = {320, 240, 640, 480, 1024, 768, 1280, 720, 1920, 1080};
 static int resCandidatePicture_ov5640[] = {320,  240, 640,  480,  1024, 768,
                                            1280, 720, 1920, 1080, 2592, 1944};
+static int resCandidatePreview_tevs[] = {640, 480, 1280, 720};
+static int resCandidatePicture_tevs[] = {640, 480, 1280, 720};
 
 status_t CameraDeviceHwlImpl::initSensorStaticData() {
     // first read sensor format.
@@ -189,6 +191,11 @@ status_t CameraDeviceHwlImpl::initSensorStaticData() {
         numResCandidatePreview = ARRAY_SIZE(resCandidatePreview_ap1302);
         pResCandidatePicture = resCandidatePicture_ap1302;
         numResCandidatePicture = ARRAY_SIZE(resCandidatePicture_ap1302);
+    } else if (strstr(mSensorData.camera_name, "tevs")) {
+        pResCandidatePreview = resCandidatePreview_tevs;
+        numResCandidatePreview = ARRAY_SIZE(resCandidatePreview_tevs);
+        pResCandidatePicture = resCandidatePicture_tevs;
+        numResCandidatePicture = ARRAY_SIZE(resCandidatePicture_tevs);
     } else if (strstr(mSensorData.camera_name, "ov5640")) {
         pResCandidatePreview = resCandidatePreview_ov5640;
         numResCandidatePreview = ARRAY_SIZE(resCandidatePreview_ov5640);
@@ -245,6 +252,7 @@ status_t CameraDeviceHwlImpl::initSensorStaticData() {
     int fpsRange_os08a20[] = {10, 30, 15, 30, 30, 30};
     int fpsRange_ap1302[] = {10, 30, 15, 30, 30, 30, 15, 60, 60, 60};
     int fpsRange_ov5640[] = {10, 30, 15, 30, 30, 30};
+    int fpsRange_tevs[] = {10, 30, 15, 30, 30, 30, 15, 60, 60, 60};
 
     if (strstr(mSensorData.camera_name, "os08a20")) {
         int rangeCount = ARRAY_SIZE(fpsRange_os08a20);
@@ -254,6 +262,10 @@ status_t CameraDeviceHwlImpl::initSensorStaticData() {
         int rangeCount = ARRAY_SIZE(fpsRange_ap1302);
         mFpsRangeCount = rangeCount <= MAX_FPS_RANGE ? rangeCount : MAX_FPS_RANGE;
         memcpy(mTargetFpsRange, fpsRange_ap1302, mFpsRangeCount * sizeof(int));
+    } else if (strstr(mSensorData.camera_name, "tevs")) {
+        int rangeCount = ARRAY_SIZE(fpsRange_tevs);
+        mFpsRangeCount = rangeCount <= MAX_FPS_RANGE ? rangeCount : MAX_FPS_RANGE;
+        memcpy(mTargetFpsRange, fpsRange_tevs, mFpsRangeCount * sizeof(int));
     } else {
         int rangeCount = ARRAY_SIZE(fpsRange_ov5640);
         mFpsRangeCount = rangeCount <= MAX_FPS_RANGE ? rangeCount : MAX_FPS_RANGE;
