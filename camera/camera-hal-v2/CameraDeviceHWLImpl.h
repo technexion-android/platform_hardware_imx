@@ -113,6 +113,10 @@ protected:
                         CameraSensorMetadata *cam_metadata, PhysicalDeviceMapPtr physical_devices,
                         HwlCameraProviderCallback &callback);
     bool PickResByMetaData(int width, int height);
+    int* ValidateCandidateResolutions(
+        const int* pResCandidateIn, int numResCandidateIn, 
+        libcamera::StreamRole role,
+        int& out_count);
 
 private:
     virtual status_t Initialize(std::shared_ptr<libcamera::Camera> &camera);
@@ -163,6 +167,8 @@ public:
 
     PhysicalMetaMap physical_meta_map_;
     PhysicalDeviceMapPtr physical_device_map_;
+
+    std::vector<int> mValidRes;
 };
 
 } // namespace android
