@@ -143,6 +143,65 @@ bool CameraDeviceHwlImpl::PickResByMetaData(int width, int height) {
     return false;
 }
 
+int* CameraDeviceHwlImpl::ValidateCandidateResolutions(
+    const int* pResCandidateIn, int numResCandidateIn, 
+    libcamera::StreamRole role,
+    int& out_count) {
+    
+    if (!camera_ || !pResCandidateIn || numResCandidateIn == 0) {
+        ALOGE("%s: Invalid input or camera is null.", __func__);
+        out_count = 0;
+        return nullptr;
+    }
+
+    std::vector<int>& destList = mValidRes;
+    const char* roleName = 
+        (role == libcamera::StreamRole::Viewfinder) ? "Preview" : "Picture";
+
+    destList.clear();
+
+    std::unique_ptr<libcamera::CameraConfiguration> config = 
+        camera_->generateConfiguration({ role });
+
+    if (!config || config->empty()) {
+        ALOGE("%s: Failed to generate config for role %s. Skipping.", __func__, roleName);
+        out_count = 0;
+        return nullptr;
+    }
+
+    libcamera::StreamConfiguration &streamConfig = config->at(0);
+
+    for (int i = 0; i < numResCandidateIn; i += 2) {
+        uint32_t reqW = pResCandidateIn[i];
+        uint32_t reqH = pResCandidateIn[i+1];
+
+        streamConfig.size.width = reqW;
+        streamConfig.size.height = reqH;
+        
+        config->validate();
+
+        if (streamConfig.size.width == reqW && streamConfig.size.height == reqH) {
+            destList.push_back(reqW);
+            destList.push_back(reqH);
+            ALOGV("%s: [%s] Supported: %dx%d", __func__, roleName, reqW, reqH);
+        } else {
+            ALOGW("%s: [%s] Unsupported: %dx%d (Adjusted to %dx%d)",
+                  __func__, roleName, reqW, reqH, 
+                  streamConfig.size.width, streamConfig.size.height);
+        }
+    }
+    
+    out_count = destList.size();
+
+    if (!destList.empty()) {
+        ALOGI("%s: %s resolutions filtered successfully. Count: %d", __func__, roleName, out_count / 2);
+        return destList.data();
+    }
+    
+    ALOGE("%s: %s list filtering resulted in an empty list!", __func__, roleName);
+    return nullptr;
+}
+
 static int resCandidatePreview_os08a20[] = {320, 240, 640, 480, 1280, 720, 1920, 1080, 1920, 1440, 3840, 2160};
 static int resCandidatePicture_os08a20[] = {320, 240, 640, 480, 1280, 720, 1920, 1080, 1920, 1440, 3840, 2160};
 static int resCandidatePreview_ap1302[] = {320, 240, 640, 480, 1280, 720, 1280, 800};
@@ -152,8 +211,9 @@ static int resCandidatePicture_ov5640[] = {320,  240, 640,  480,  1024, 768,
                                            1280, 720, 1920, 1080, 1920, 1440, 2592, 1944};
 static int resCandidatePreview_mx95mbcam[] = {320, 240, 640, 480, 1280, 720, 1920, 1080, 1920, 1280};
 static int resCandidatePicture_mx95mbcam[] = {320, 240, 640, 480, 1280, 720, 1920, 1080, 1920, 1280};
-static int resCandidatePreview_tevs[] = {640, 480, 1280, 720};
-static int resCandidatePicture_tevs[] = {640, 480, 1280, 720};
+static int resCandidatePreview_tevs[] = {640, 480, 1280, 720, 1280, 960, 1920, 1080};
+static int resCandidatePicture_tevs[] = {640, 480, 1280, 720, 1280, 960, 1920, 1080, 2560, 1440,
+                                         2592, 1944, 3840, 2160, 4208, 3120};
 
 status_t CameraDeviceHwlImpl::initSensorStaticData() {
     // first read sensor format.
@@ -216,6 +276,31 @@ status_t CameraDeviceHwlImpl::initSensorStaticData() {
     } else {
         ALOGE("%s: unsupported camera %s", __func__, mSensorData.camera_name);
         return BAD_VALUE;
+    }
+
+    // validate all candidate resolutions
+    int *pValidRes = nullptr;
+    int out_count = 0;
+
+    pValidRes = ValidateCandidateResolutions(
+        pResCandidatePreview, numResCandidatePreview,
+        libcamera::StreamRole::Viewfinder, out_count
+    );
+
+    if (pValidRes) {
+        pResCandidatePreview = pValidRes;
+        numResCandidatePreview = out_count;
+    }
+    
+    pValidRes = nullptr;
+    pValidRes = ValidateCandidateResolutions(
+        pResCandidatePicture, numResCandidatePicture,
+        libcamera::StreamRole::StillCapture, out_count
+    );
+
+    if (pValidRes) {
+        pResCandidatePicture = pValidRes;
+        numResCandidatePicture = out_count;
     }
 
     int i = 0;
