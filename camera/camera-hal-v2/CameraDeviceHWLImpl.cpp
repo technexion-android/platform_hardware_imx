@@ -230,6 +230,10 @@ status_t CameraDeviceHwlImpl::initSensorStaticData() {
     } else if (strcmp(mSensorData.v4l2_format, "rgb3") == 0) {
         sensorFormats[index] = v4l2_fourcc('R', 'G', 'B', '3');
         availFormats[index++] = v4l2_fourcc('R', 'G', 'B', '3');
+    } else if (strcmp(mSensorData.v4l2_format, "uyvy") == 0) {
+        sensorFormats[index] = v4l2_fourcc('U', 'Y', 'V', 'Y');
+        availFormats[index++] = v4l2_fourcc('U', 'Y', 'V', 'Y');
+
     } else {
         sensorFormats[index] = v4l2_fourcc('Y', 'U', 'Y', 'V');
         availFormats[index++] = v4l2_fourcc('Y', 'U', 'Y', 'V');

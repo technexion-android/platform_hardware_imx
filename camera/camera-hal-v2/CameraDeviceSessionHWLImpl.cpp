@@ -179,6 +179,8 @@ status_t CameraDeviceSessionHwlImpl::Initialize(uint32_t camera_id,
         m_libcamera_stream_format = HAL_PIXEL_FORMAT_YCBCR_420_888;
     else if (strcmp(mSensorData.v4l2_format, "rgb3") == 0) {
         m_libcamera_stream_format = HAL_PIXEL_FORMAT_RGB_888;
+    } else if (strcmp(mSensorData.v4l2_format, "uyvy") == 0) {
+        m_libcamera_stream_format = HAL_PIXEL_FORMAT_CbYCrY_422_I;
     } else
         m_libcamera_stream_format = HAL_PIXEL_FORMAT_YCBCR_422_I;
 
@@ -591,6 +593,9 @@ static libcamera::PixelFormat HalFromat2PixelFormat(int halFmt) {
         case HAL_PIXEL_FORMAT_YCBCR_420_888:
         case HAL_PIXEL_FORMAT_YV12:
             pixelFmt = libcamera::formats::NV12;
+            break;
+        case HAL_PIXEL_FORMAT_CbYCrY_422_I:
+            pixelFmt = libcamera::formats::UYVY;
             break;
         case HAL_PIXEL_FORMAT_YCBCR_422_I:
         case HAL_PIXEL_FORMAT_BLOB:
@@ -1179,6 +1184,7 @@ static uint32_t GetPlansInfo(const libcamera::StreamConfiguration &streamConfig,
             plansInfo.plans[1].offset = plansInfo.plans[0].size;
             plansInfo.plans[1].size = width * height / 2;
             break;
+        case libcamera::formats::UYVY:
         case libcamera::formats::YUYV:
             plansInfo.num = 1;
             plansInfo.plans[0].offset = 0;
