@@ -439,6 +439,7 @@ int32_t CameraDeviceSessionHwlImpl::processJpegBuffer(ImxStreamBuffer *srcBuf,
             break;
 
         case HAL_PIXEL_FORMAT_YCbCr_422_I:
+        case HAL_PIXEL_FORMAT_CbYCrY_422_I:
             alignedw = ALIGN_PIXEL_16(capture->mWidth);
             alignedh = ALIGN_PIXEL_16(capture->mHeight);
             captureSize = alignedw * alignedh * 2;
@@ -1771,6 +1772,16 @@ status_t CameraDeviceSessionHwlImpl::ProcessCapbuf2Outbuf(ImxStreamBuffer *srcBu
 
     uint64_t t1 = systemTime();
 
+    // Convert pixel format
+    ImxStreamBuffer convBuf;
+    switch(srcBuf->mStream->format()) {
+        case HAL_PIXEL_FORMAT_CbYCrY_422_I: {
+            memset(&convBuf, 0, sizeof(convBuf));
+            conv_pixel_format(&convBuf, srcBuf, HAL_PIXEL_FORMAT_YCbCr_422_I, mCamBlitCscType);
+            break;
+        }
+    }
+
     if (dstBuf->mStream->format() == HAL_PIXEL_FORMAT_BLOB) {
         mJpegBuilder->reset();
         mJpegBuilder->setMetadata(&requestMeta);
@@ -1794,6 +1805,14 @@ status_t CameraDeviceSessionHwlImpl::ProcessCapbuf2Outbuf(ImxStreamBuffer *srcBu
     DumpStream(srcBuf->mVirtAddr, srcBuf->mFormatSize, dstBuf->mVirtAddr, dstBuf->mFormatSize,
                dstBuf->mStream->id());
 
+    if (convBuf.mPhyAddr > 0) {
+        // REMEMBER to restore srcBuf from convBuf
+        SwitchStreamBuf(*srcBuf, convBuf);
+        if (convBuf.mStream && (convBuf.mStream != srcBuf->mStream)) {
+            delete(convBuf.mStream);
+        }
+        FreePhyBuffer(convBuf.buffer);
+    }
     ReleaseImxStreamBuffer(dstBuf);
     return 0;
 }
@@ -2078,6 +2097,35 @@ void CameraDeviceSessionHwlImpl::requestComplete(libcamera::Request *request) {
 
 void CameraDeviceSessionHwlImpl::RepeatingRequestEnd(
     int32_t /*frame_number*/, const std::vector<int32_t>& /*stream_ids*/) {
+}
+
+int CameraDeviceSessionHwlImpl::conv_pixel_format(ImxStreamBuffer *convBuf, ImxStreamBuffer *srcBuf, int32_t nu_pixel_fmt, ImxEngine hw_type) {
+    int ret = -1;
+    ImxStream *src = srcBuf->mStream;
+
+    if(convBuf == NULL) {
+        return(-ENOMEM);
+    }
+
+    if(src->format() == nu_pixel_fmt) {
+        return(0);
+    }
+
+    memset(convBuf, 0, sizeof(*convBuf));
+    convBuf->mFormatSize = srcBuf->mFormatSize;
+    ret = AllocPhyBuffer(srcBuf->mWidth, srcBuf->mHeight, nu_pixel_fmt, *convBuf);
+    if (ret) {
+        ALOGE("%s:%d AllocPhyBuffer failed", __func__, __LINE__);
+        return(BAD_VALUE);
+    }
+    convBuf->mStream = new ImxStream(src->width(), src->height(), nu_pixel_fmt, src->usage(), src->id(), src->isPreview());
+
+    handleFrame(*convBuf, *srcBuf, hw_type);
+    // Swap srcBuf and convBuf
+    SwitchStreamBuf(*srcBuf, *convBuf);
+    ret = 0;
+
+    return(ret);
 }
 
 } // namespace android

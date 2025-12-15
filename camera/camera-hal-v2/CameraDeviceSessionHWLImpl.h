@@ -243,6 +243,8 @@ private:
     status_t queueRequestToLibcameraLocked(HalCameraMetadata *cameraMeta);
     void ISPProcess(HalCameraMetadata *cameraMeta, libcamera::Request *request);
 
+    int conv_pixel_format(ImxStreamBuffer *convBuf, ImxStreamBuffer *srcBuf, int32_t nu_pixel_fmt, ImxEngine hw_type);
+
 public:
     CameraSensorMetadata *getSensorData() { return &mSensorData; }
     char *getDevPath(int i) { return (*mDevPath[i]); }
