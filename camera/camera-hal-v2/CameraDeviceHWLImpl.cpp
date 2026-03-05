@@ -389,9 +389,9 @@ status_t CameraDeviceHwlImpl::initSensorStaticData() {
 
     // store supported formats
     std::unique_ptr<libcamera::CameraConfiguration> config;
-    config = camera_->generateConfiguration({libcamera::StreamRole::Viewfinder});
+    config = camera_->generateConfiguration({libcamera::StreamRole::StillCapture});
     if (config == NULL) {
-        ALOGE("%s: generateConfiguration for Viewfinder failed", __func__);
+        ALOGE("%s: generateConfiguration for StillCapture failed", __func__);
         return BAD_VALUE;
     }
 
